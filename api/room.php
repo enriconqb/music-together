@@ -94,6 +94,14 @@ function withRoom(string $path, callable $fn, bool $create = false): array
         fclose($fh);
         throw $e;
     }
+    pruneStaleUsers($data);
+    if (count($data['users'] ?? []) === 0 && !empty($data['code'])) {
+        flock($fh, LOCK_UN);
+        fclose($fh);
+        @unlink($path);
+        $data['_deleted'] = true;
+        return $data;
+    }
     rewind($fh);
     ftruncate($fh, 0);
     fwrite($fh, json_encode($data, JSON_UNESCAPED_UNICODE));
@@ -101,6 +109,16 @@ function withRoom(string $path, callable $fn, bool $create = false): array
     flock($fh, LOCK_UN);
     fclose($fh);
     return $data;
+}
+
+function pruneStaleUsers(array &$room): void
+{
+    $now = (int)(microtime(true) * 1000);
+    foreach ($room['users'] ?? [] as $id => $user) {
+        if (($now - (int)($user['lastSeen'] ?? 0)) >= 20000) {
+            unset($room['users'][$id]);
+        }
+    }
 }
 
 function publicRoom(array $room, bool $includeChat = true): array
@@ -150,6 +168,16 @@ function listRooms(string $dir): array
     foreach (glob($dir . DIRECTORY_SEPARATOR . '*.json') ?: [] as $file) {
         $data = json_decode((string)file_get_contents($file), true);
         if (!is_array($data) || empty($data['code'])) {
+            continue;
+        }
+        try {
+            $data = withRoom($file, function (array $room) {
+                return $room;
+            });
+        } catch (Throwable $e) {
+            continue;
+        }
+        if (!empty($data['_deleted']) || empty($data['code'])) {
             continue;
         }
         $pub = publicRoom($data, false);
@@ -220,6 +248,9 @@ function joinRoom(string $dir, array $input): array
         http_response_code(403);
         return ['ok' => false, 'error' => $e->getMessage()];
     }
+    if (!empty($room['_deleted'])) {
+        return ['ok' => true, 'deleted' => true];
+    }
     return ['ok' => true, 'room' => publicRoom($room)];
 }
 
@@ -236,6 +267,9 @@ function readState(string $dir, array $input): array
         touchUser($room, $input);
         return $room;
     });
+    if (!empty($room['_deleted'])) {
+        return ['ok' => true, 'deleted' => true];
+    }
     $pub = publicRoom($room);
     $pub['chat'] = array_values(array_filter($pub['chat'], fn($msg) => (int)($msg['time'] ?? 0) > $since));
     return ['ok' => true, 'room' => $pub];
@@ -332,6 +366,9 @@ function mutate(string $dir, array $input, string $op): array
     } catch (RuntimeException $e) {
         http_response_code(403);
         return ['ok' => false, 'error' => $e->getMessage()];
+    }
+    if (!empty($room['_deleted'])) {
+        return ['ok' => true, 'deleted' => true];
     }
     $pub = publicRoom($room, $op === 'chat' || $op === 'state');
     if ($op !== 'chat') {

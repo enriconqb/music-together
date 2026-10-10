@@ -13,6 +13,10 @@
 
   .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; background: #000; }
   .video-container iframe, .video-container #yt-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+  body.audio-only .video-container { padding-bottom: 0; height: 240px; }
+  body.audio-only .video-container iframe,
+  body.audio-only .video-container #yt-player { position: fixed; left: -9999px; top: 0; width: 320px; height: 180px; }
+  body.audio-only #audioCover { display: flex; }
 
   @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
   .pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
@@ -76,6 +80,7 @@
 
       <div class="flex items-center gap-1">
         <span id="roomIdDisplayMobile" class="sm:hidden dark-bg-secondary px-2 py-0.5 bg-[#1a1a2e] rounded-full text-xs dark-text-muted text-gray-400 border dark-border border-[#2a2a3e] transition-colors duration-300">—</span>
+        <button type="button" id="profileBtn" onclick="openProfileEditor()" class="hidden text-xs px-3 py-1 rounded-full dark-bg-secondary bg-[#1a1a2e] border dark-border border-[#2a2a3e] dark-text-muted text-gray-300 hover:text-white"></button>
         <button onclick="toggleTheme()" id="themeToggle" class="p-2 dark-text-muted text-gray-400 hover:text-white transition-colors">
           <svg id="sunIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
           <svg id="moonIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
@@ -86,6 +91,25 @@
 </header>
 
 <main class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+
+  <div id="profileGate" class="hidden fixed inset-0 z-[90] bg-black/70 flex items-center justify-center p-4">
+    <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 w-full max-w-md border dark-border border-[#2a2a3e]">
+      <h2 class="font-semibold mb-2">Nama kamu</h2>
+      <p class="text-sm dark-text-muted text-gray-400 mb-3">Perangkat ini belum punya profil. Nama dipakai di room dan chat.</p>
+      <input id="profileNameInput" type="text" maxlength="20" placeholder="Nama" class="dark-input w-full px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm placeholder-gray-500 mb-3">
+      <button type="button" onclick="saveProfileFromGate()" class="w-full py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-xl text-sm font-medium text-white">Simpan nama</button>
+    </div>
+  </div>
+  <div id="profileEditor" class="hidden fixed inset-0 z-[80] bg-black/60 flex items-center justify-center p-4">
+    <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 w-full max-w-sm border dark-border border-[#2a2a3e]">
+      <h2 class="font-semibold mb-3">Ubah profil</h2>
+      <input id="profileEditInput" type="text" maxlength="20" class="dark-input w-full px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm mb-3">
+      <div class="flex gap-2">
+        <button type="button" onclick="saveProfileEdit()" class="flex-1 py-2 bg-violet-600 rounded-xl text-sm text-white">Simpan</button>
+        <button type="button" onclick="closeProfileEditor()" class="flex-1 py-2 bg-[#2a2a3e] rounded-xl text-sm">Batal</button>
+      </div>
+    </div>
+  </div>
 
   <!-- ================= LANDING SCREEN ================= -->
   <div id="landingScreen">
@@ -187,6 +211,10 @@
         <!-- Video player -->
         <div class="video-container bg-black mb-3 sm:mb-4 relative">
           <div id="yt-player"></div>
+          <div id="audioCover" class="absolute inset-0 z-30 hidden flex-col items-center justify-center bg-[#0f0f1a] px-6 text-center">
+            <img id="audioCoverImg" alt="" class="w-36 h-36 rounded-2xl object-cover mb-3 shadow-lg shadow-black/40 bg-[#1a1a2e]">
+            <p id="audioCoverTitle" class="text-sm font-medium truncate max-w-full">Tidak ada lagu</p>
+          </div>
           <div id="noSongOverlay" class="dark-bg-primary absolute inset-0 flex flex-col items-center justify-center bg-[#0f0f1a] z-10 transition-colors duration-300">
             <svg class="w-16 h-16 dark-text-muted text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
             <p class="dark-text-muted text-gray-500 text-sm">No song playing</p>
@@ -206,10 +234,14 @@
             <div class="flex-1 min-w-0">
               <h3 id="nowPlayingTitle" class="font-semibold text-sm sm:text-base truncate">Not playing</h3>
               <p id="nowPlayingArtist" class="dark-text-muted text-gray-400 text-xs sm:text-sm truncate">—</p>
-              <div class="flex items-center gap-2 mt-1">
-                <span id="nowPlayingSource" class="dark-bg-tertiary text-[10px] px-1.5 py-0.5 rounded bg-[#2a2a3e] dark-text-muted text-gray-400">—</span>
-                <span id="nowPlayingAddedBy" class="text-[10px] dark-text-muted text-gray-500"></span>
+            <div class="flex items-center gap-2 mt-1">
+              <div class="flex rounded-full border dark-border border-[#2a2a3e] overflow-hidden text-[10px]">
+                <button type="button" id="modeAudioBtn" onclick="setPlayerMode('audio')" class="px-2.5 py-1">Audio</button>
+                <button type="button" id="modeVideoBtn" onclick="setPlayerMode('video')" class="px-2.5 py-1">Video</button>
               </div>
+              <span id="nowPlayingSource" class="dark-bg-tertiary text-[10px] px-1.5 py-0.5 rounded bg-[#2a2a3e] dark-text-muted text-gray-400">—</span>
+              <span id="nowPlayingAddedBy" class="text-[10px] dark-text-muted text-gray-500"></span>
+            </div>
             </div>
           </div>
           <div class="mt-3">

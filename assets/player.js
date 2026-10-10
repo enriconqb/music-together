@@ -1,7 +1,7 @@
 const state = {
   roomId: null,
-  userName: 'Guest',
-  userId: 'user_' + Math.random().toString(36).slice(2, 11),
+  userName: '',
+  userId: '',
   queue: [],
   currentIndex: -1,
   isPlaying: false,
@@ -17,7 +17,103 @@ const state = {
   pollTimer: null,
   applyingRemote: false,
   loadedKey: '',
+  playerMode: 'audio',
 };
+
+function loadProfile() {
+  let profile = {};
+  try { profile = JSON.parse(localStorage.getItem('synctunes_profile') || '{}'); } catch (e) {}
+  if (!profile.userId) profile.userId = 'user_' + Math.random().toString(36).slice(2, 11);
+  state.userId = profile.userId;
+  state.userName = (profile.name || '').trim().slice(0, 20);
+  try { localStorage.setItem('synctunes_profile', JSON.stringify({ userId: state.userId, name: state.userName })); } catch (e) {}
+  const mode = localStorage.getItem('synctunes_player_mode');
+  state.playerMode = mode === 'video' ? 'video' : 'audio';
+}
+
+function hasProfile() {
+  return state.userName.length > 0;
+}
+
+function applyProfileUI() {
+  const ready = hasProfile();
+  document.getElementById('profileGate').classList.toggle('hidden', ready);
+  document.getElementById('createRoomName').classList.add('hidden');
+  document.getElementById('joinUserName').classList.add('hidden');
+  const btn = document.getElementById('profileBtn');
+  btn.classList.toggle('hidden', !ready);
+  btn.textContent = state.userName;
+}
+
+function saveProfileFromGate() {
+  const name = document.getElementById('profileNameInput').value.trim().slice(0, 20);
+  if (!name) {
+    showToast('Nama wajib diisi', 'error');
+    return;
+  }
+  state.userName = name;
+  localStorage.setItem('synctunes_profile', JSON.stringify({ userId: state.userId, name }));
+  applyProfileUI();
+}
+
+function openProfileEditor() {
+  document.getElementById('profileEditInput').value = state.userName;
+  document.getElementById('profileEditor').classList.remove('hidden');
+}
+
+function closeProfileEditor() {
+  document.getElementById('profileEditor').classList.add('hidden');
+}
+
+function saveProfileEdit() {
+  const name = document.getElementById('profileEditInput').value.trim().slice(0, 20);
+  if (!name) {
+    showToast('Nama wajib diisi', 'error');
+    return;
+  }
+  state.userName = name;
+  localStorage.setItem('synctunes_profile', JSON.stringify({ userId: state.userId, name }));
+  applyProfileUI();
+  closeProfileEditor();
+  showToast('Profil diperbarui', 'success');
+}
+
+function requireProfile() {
+  if (hasProfile()) return true;
+  document.getElementById('profileGate').classList.remove('hidden');
+  showToast('Isi nama kamu dulu', 'error');
+  return false;
+}
+
+function setPlayerMode(mode) {
+  state.playerMode = mode === 'video' ? 'video' : 'audio';
+  localStorage.setItem('synctunes_player_mode', state.playerMode);
+  document.body.classList.toggle('audio-only', state.playerMode === 'audio');
+  document.getElementById('modeAudioBtn').classList.toggle('bg-violet-600', state.playerMode === 'audio');
+  document.getElementById('modeAudioBtn').classList.toggle('text-white', state.playerMode === 'audio');
+  document.getElementById('modeVideoBtn').classList.toggle('bg-violet-600', state.playerMode === 'video');
+  document.getElementById('modeVideoBtn').classList.toggle('text-white', state.playerMode === 'video');
+  const song = state.queue[state.currentIndex];
+  if (song && song.source === 'spotify') state.loadedKey = '';
+  if (song) playSongAtIndex(state.currentIndex, false);
+  updateAudioCover(song || null);
+}
+
+function updateAudioCover(song) {
+  const img = document.getElementById('audioCoverImg');
+  const title = document.getElementById('audioCoverTitle');
+  if (!song) {
+    img.removeAttribute('src');
+    title.textContent = 'Tidak ada lagu';
+    return;
+  }
+  title.textContent = song.title || 'Tidak ada lagu';
+  if (song.source === 'youtube' && song.videoId) {
+    img.src = 'https://i.ytimg.com/vi/' + song.videoId + '/hqdefault.jpg';
+  } else {
+    img.removeAttribute('src');
+  }
+}
 
 function toggleTheme() {
   document.body.classList.toggle('light');
@@ -122,7 +218,8 @@ async function setupRoomList() {
 }
 
 async function createRoom() {
-  const name = document.getElementById('createRoomName').value.trim() || 'Host';
+  if (!requireProfile()) return;
+  const name = state.userName;
   const isPrivate = document.getElementById('privateRoomCheck').checked;
   const password = isPrivate ? document.getElementById('roomPassword').value.trim() : '';
   if (isPrivate && !password) {
@@ -139,8 +236,9 @@ async function createRoom() {
 }
 
 async function joinRoom() {
+  if (!requireProfile()) return;
   const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
-  const name = document.getElementById('joinUserName').value.trim() || 'Guest';
+  const name = state.userName;
   if (!/^[A-Z0-9]{6}$/.test(code)) {
     showToast('Kode room harus 6 karakter', 'error');
     return;
@@ -171,13 +269,11 @@ async function joinRoom() {
 }
 
 function joinRoomFromList(code, isPrivate) {
+  if (!requireProfile()) return;
   document.getElementById('joinRoomCode').value = code;
-  if (!document.getElementById('joinUserName').value.trim()) {
-    document.getElementById('joinUserName').value = 'Guest';
-  }
   if (isPrivate) {
     const password = prompt('Room ini privat. Masukkan password:') || '';
-    state.userName = document.getElementById('joinUserName').value.trim() || 'Guest';
+    state.userName = state.userName;
     api('api/room.php', {
       action: 'join',
       code,
@@ -212,11 +308,11 @@ function enterRoom(room) {
   state.pollTimer = setInterval(pollRoom, 1500);
 }
 
-async function leaveRoom() {
+async function leaveRoom(silent) {
   const code = state.roomId;
   if (state.pollTimer) clearInterval(state.pollTimer);
   state.pollTimer = null;
-  if (code) {
+  if (code && !silent) {
     api('api/room.php', { action: 'leave', code, userId: state.userId, userName: state.userName }).catch(() => {});
   }
   state.roomId = null;
@@ -243,8 +339,18 @@ async function pollRoom() {
       userName: state.userName,
       sinceChat: state.lastChat,
     });
+    if (data.deleted) {
+      showToast('Room ditutup karena kosong', 'info');
+      leaveRoom(true);
+      return;
+    }
     applyRoom(data.room, false);
   } catch (err) {
+    if (String(err.message).includes('tidak ditemukan')) {
+      showToast('Room sudah ditutup', 'info');
+      leaveRoom(true);
+      return;
+    }
     console.warn(err);
   }
 }
@@ -335,7 +441,8 @@ function playSongAtIndex(index, broadcast) {
     }
     if (state.loadedKey !== key) {
       const c = document.getElementById('spotifyEmbedContainer');
-      const height = song.spotifyType === 'track' || song.spotifyType === 'episode' ? '152' : '380';
+      const compact = state.playerMode === 'audio' || song.spotifyType === 'track' || song.spotifyType === 'episode';
+      const height = compact ? '152' : '380';
       c.innerHTML = '';
       const iframe = document.createElement('iframe');
       iframe.src = `https://open.spotify.com/embed/${song.spotifyType}/${song.spotifyId}?utm_source=generator`;
@@ -471,12 +578,14 @@ function updateNowPlayingUI(song) {
     document.getElementById('currentTime').textContent = '0:00';
     document.getElementById('totalTime').textContent = '0:00';
     document.getElementById('progressBar').style.width = '0%';
+    updateAudioCover(null);
     return;
   }
   document.getElementById('nowPlayingTitle').textContent = song.title || 'Unknown';
   document.getElementById('nowPlayingArtist').textContent = song.artist || 'Unknown';
   document.getElementById('nowPlayingSource').textContent = song.source === 'youtube' ? 'YouTube' : 'Spotify';
   document.getElementById('nowPlayingAddedBy').textContent = song.addedBy ? 'oleh ' + song.addedBy : '';
+  updateAudioCover(song);
 }
 
 function updatePlayPauseUI(isPlaying) {
@@ -598,6 +707,9 @@ document.getElementById('progressBarContainer')?.addEventListener('click', funct
 });
 
 window.addEventListener('load', () => {
+  loadProfile();
+  applyProfileUI();
+  setPlayerMode(state.playerMode);
   setupRoomList();
   switchMobileTab('player');
   const hash = window.location.hash.replace('#', '').toUpperCase();
@@ -607,10 +719,22 @@ window.addEventListener('load', () => {
   }
 });
 
+window.addEventListener('pagehide', () => {
+  if (!state.roomId) return;
+  const body = JSON.stringify({
+    action: 'leave',
+    code: state.roomId,
+    userId: state.userId,
+    userName: state.userName,
+  });
+  navigator.sendBeacon('api/room.php', new Blob([body], { type: 'application/json' }));
+});
+
 Object.assign(window, {
   createRoom, joinRoom, joinRoomFromList, leaveRoom,
   addSongFromInput, togglePlayPause, skipSong, playPrevious,
   removeFromQueue, playNow, clearQueue, shuffleQueue,
   toggleShuffle, toggleRepeat, sendChatMessage, setVolume,
   toggleTheme, switchMobileTab, onYouTubeIframeAPIReady,
+  saveProfileFromGate, openProfileEditor, closeProfileEditor, saveProfileEdit, setPlayerMode,
 });
