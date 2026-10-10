@@ -100,6 +100,15 @@ function resolveYouTubeFallback(string $query): array
 
 function youtubePlaylistFeed(string $playlistId): array
 {
+    $songs = youtubePlaylistRss($playlistId);
+    if ($songs) {
+        return $songs;
+    }
+    return youtubePlaylistHtml($playlistId);
+}
+
+function youtubePlaylistRss(string $playlistId): array
+{
     $xml = httpText('https://www.youtube.com/feeds/videos.xml?playlist_id=' . rawurlencode($playlistId));
     if ($xml === '') {
         return [];
@@ -124,6 +133,95 @@ function youtubePlaylistFeed(string $playlistId): array
             'videoId' => $videoId,
             'title' => (string)$entry->title,
             'artist' => $artist,
+            'duration' => 0,
+        ];
+        if (count($songs) >= 100) {
+            break;
+        }
+    }
+    return $songs;
+}
+
+function youtubePlaylistHtml(string $playlistId): array
+{
+    $html = httpText(
+        'https://www.youtube.com/playlist?list=' . rawurlencode($playlistId),
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36'
+    );
+    if ($html === '') {
+        return [];
+    }
+    $songs = youtubePlaylistRenderers($html);
+    if ($songs) {
+        return $songs;
+    }
+    $songs = [];
+    $seen = [];
+    $offset = 0;
+    $marker = '"lockupMetadataViewModel":{"title":{"content":"';
+    while (($pos = strpos($html, $marker, $offset)) !== false && count($songs) < 100) {
+        $valueStart = $pos + strlen($marker);
+        $titleRaw = '';
+        $length = strlen($html);
+        for ($i = $valueStart; $i < $length; $i++) {
+            $char = $html[$i];
+            if ($char === '\\') {
+                $titleRaw .= $char . ($html[$i + 1] ?? '');
+                $i++;
+                continue;
+            }
+            if ($char === '"') {
+                break;
+            }
+            $titleRaw .= $char;
+        }
+        $start = max(0, $pos - 12000);
+        $window = substr($html, $start, $pos - $start);
+        $offset = $valueStart;
+        if (!preg_match_all('#/vi/([\w-]{11})/#', $window, $ids) || !$ids[1]) {
+            continue;
+        }
+        $videoId = $ids[1][count($ids[1]) - 1];
+        if (isset($seen[$videoId])) {
+            continue;
+        }
+        $seen[$videoId] = true;
+        $decoded = json_decode('"' . $titleRaw . '"');
+        $songs[] = [
+            'videoId' => $videoId,
+            'title' => is_string($decoded) && $decoded !== '' ? $decoded : 'YouTube Video',
+            'artist' => 'YouTube',
+            'duration' => 0,
+        ];
+    }
+    return $songs;
+}
+
+function youtubePlaylistRenderers(string $html): array
+{
+    if (!preg_match_all('/"playlistVideoRenderer":\{"videoId":"([\w-]{11})"/', $html, $matches, PREG_OFFSET_CAPTURE)) {
+        return [];
+    }
+    $songs = [];
+    $seen = [];
+    foreach ($matches[1] as $hit) {
+        $videoId = $hit[0];
+        if (isset($seen[$videoId])) {
+            continue;
+        }
+        $seen[$videoId] = true;
+        $slice = substr($html, (int)$hit[1], 900);
+        $title = 'YouTube Video';
+        if (preg_match('/"title":\{"runs":\[\{"text":"((?:\\\\.|[^"\\\\])*)"/', $slice, $titleMatch)) {
+            $decoded = json_decode('"' . $titleMatch[1] . '"');
+            if (is_string($decoded) && $decoded !== '') {
+                $title = $decoded;
+            }
+        }
+        $songs[] = [
+            'videoId' => $videoId,
+            'title' => $title,
+            'artist' => 'YouTube',
             'duration' => 0,
         ];
         if (count($songs) >= 100) {
@@ -181,14 +279,15 @@ function httpJson(string $url): array
     return is_array($json) ? $json : [];
 }
 
-function httpText(string $url): string
+function httpText(string $url, string $userAgent = 'SyncTunes'): string
 {
     if (function_exists('curl_init')) {
         $ch = curl_init($url);
         curl_setopt_array($ch, [
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT => 12,
-            CURLOPT_USERAGENT => 'SyncTunes',
+            CURLOPT_TIMEOUT => 20,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_USERAGENT => $userAgent,
         ]);
         $body = curl_exec($ch);
         curl_close($ch);

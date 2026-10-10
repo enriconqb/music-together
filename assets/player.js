@@ -681,13 +681,7 @@ function skipSong() {
     next = Math.floor(Math.random() * state.queue.length);
   } else {
     next = state.currentIndex + 1;
-    if (next >= state.queue.length) {
-      if (state.isRepeat) next = 0;
-      else {
-        showToast('Akhir antrian', 'info');
-        return;
-      }
-    }
+    if (next >= state.queue.length) next = 0;
   }
   playSongAtIndex(next, true);
 }

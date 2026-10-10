@@ -411,6 +411,6 @@
   </div>
 </main>
 
-<script src="assets/player.js?v=11"></script>
+<script src="assets/player.js?v=12"></script>
 </body>
 </html>
