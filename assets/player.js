@@ -104,17 +104,31 @@ function setPlayerMode(mode) {
 
 function updateAudioCover(song) {
   const img = document.getElementById('audioCoverImg');
+  const icon = document.getElementById('audioCoverIcon');
   const title = document.getElementById('audioCoverTitle');
+  const hint = document.getElementById('audioCoverHint');
+  const art = document.getElementById('audioCoverArt');
   if (!song) {
+    img.classList.add('hidden');
     img.removeAttribute('src');
-    title.textContent = 'Tidak ada lagu';
+    icon.classList.remove('hidden');
+    art.className = 'w-36 h-36 rounded-2xl mb-4 flex items-center justify-center overflow-hidden bg-gradient-to-br from-violet-600/30 to-fuchsia-600/20 border border-white/10';
+    title.textContent = 'Belum ada lagu';
+    hint.classList.remove('hidden');
     return;
   }
-  title.textContent = song.title || 'Tidak ada lagu';
+  title.textContent = song.title || 'Tidak ada judul';
+  hint.classList.add('hidden');
   if (song.source === 'youtube' && song.videoId) {
     img.src = 'https://i.ytimg.com/vi/' + song.videoId + '/hqdefault.jpg';
+    img.classList.remove('hidden');
+    icon.classList.add('hidden');
+    art.className = 'w-36 h-36 rounded-2xl mb-4 flex items-center justify-center overflow-hidden shadow-lg shadow-black/40';
   } else {
+    img.classList.add('hidden');
     img.removeAttribute('src');
+    icon.classList.remove('hidden');
+    art.className = 'w-36 h-36 rounded-2xl mb-4 flex items-center justify-center overflow-hidden bg-gradient-to-br from-green-600/40 to-emerald-800/30 border border-white/10';
   }
 }
 

@@ -212,8 +212,12 @@
         <div class="video-container bg-black mb-3 sm:mb-4 relative">
           <div id="yt-player"></div>
           <div id="audioCover" class="absolute inset-0 z-30 hidden flex-col items-center justify-center bg-[#0f0f1a] px-6 text-center">
-            <img id="audioCoverImg" alt="" class="w-36 h-36 rounded-2xl object-cover mb-3 shadow-lg shadow-black/40 bg-[#1a1a2e]">
-            <p id="audioCoverTitle" class="text-sm font-medium truncate max-w-full">Tidak ada lagu</p>
+            <div id="audioCoverArt" class="w-36 h-36 rounded-2xl mb-4 flex items-center justify-center overflow-hidden bg-gradient-to-br from-violet-600/30 to-fuchsia-600/20 border border-white/10">
+              <img id="audioCoverImg" alt="" class="hidden w-full h-full object-cover">
+              <svg id="audioCoverIcon" class="w-14 h-14 text-violet-300/80" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+            </div>
+            <p id="audioCoverTitle" class="text-sm font-medium text-gray-200 truncate max-w-full">Belum ada lagu</p>
+            <p id="audioCoverHint" class="text-xs text-gray-500 mt-1">Tempel tautan YouTube atau Spotify untuk mulai</p>
           </div>
           <div id="noSongOverlay" class="dark-bg-primary absolute inset-0 flex flex-col items-center justify-center bg-[#0f0f1a] z-10 transition-colors duration-300">
             <svg class="w-16 h-16 dark-text-muted text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
