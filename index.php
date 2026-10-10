@@ -52,9 +52,22 @@
   #landingGrid { flex: 1; min-height: 0; display: flex; flex-direction: column; }
   #landingForms { flex-shrink: 0; }
   @media (max-width: 1023px) {
-    #landingForms { max-height: 58%; overflow: auto; }
+    #landingScreen .landing-hero-mark { display: none; }
+    #landingScreen .landing-blurb { display: none; }
+    #landingScreen h1 { font-size: 1.25rem; }
+    #landingTabs { display: flex; }
+    #landingScreen[data-landing-tab="create"] #landingJoin,
+    #landingScreen[data-landing-tab="create"] #landingRooms { display: none; }
+    #landingScreen[data-landing-tab="join"] #landingCreate,
+    #landingScreen[data-landing-tab="join"] #landingRooms { display: none; }
+    #landingScreen[data-landing-tab="rooms"] #landingForms { display: none; }
+    #landingScreen[data-landing-tab="rooms"] #landingRooms,
+    #landingScreen[data-landing-tab="rooms"] #roomListCard { display: flex; flex: 1; min-height: 0; }
+    #landingCreate, #landingJoin { min-height: 0; }
+    #landingScreen .landing-action { padding-top: 0.85rem; padding-bottom: 0.85rem; }
   }
   @media (min-width: 1024px) {
+    #landingTabs { display: none; }
     #landingGrid { display: grid; grid-template-columns: 1fr 400px; gap: 1.5rem; }
     #landingForms { max-height: none; overflow: visible; }
   }
@@ -165,13 +178,18 @@
   </div>
 
   <!-- ================= LANDING SCREEN ================= -->
-  <div id="landingScreen">
+  <div id="landingScreen" data-landing-tab="create">
     <div class="text-center mb-3 max-w-5xl mx-auto shrink-0">
-      <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/20">
+      <div class="landing-hero-mark w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/20">
         <svg class="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
       </div>
       <h1 class="text-2xl sm:text-3xl font-bold mb-1">Listen Together</h1>
-      <p class="dark-text-muted text-gray-400 text-sm">Create a room or join with a code to share music with friends.</p>
+      <p class="landing-blurb dark-text-muted text-gray-400 text-sm">Create a room or join with a code to share music with friends.</p>
+    </div>
+    <div id="landingTabs" class="shrink-0 mb-3 gap-1 rounded-xl bg-[#1a1a2e] border border-[#2a2a3e] p-1">
+      <button type="button" id="landingTabcreate" onclick="switchLandingTab('create')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-violet-600 text-white">Buat</button>
+      <button type="button" id="landingTabjoin" onclick="switchLandingTab('join')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-gray-400">Gabung</button>
+      <button type="button" id="landingTabrooms" onclick="switchLandingTab('rooms')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-gray-400">Room</button>
     </div>
 
     <!-- DESKTOP: 2-col layout | MOBILE: stacked -->
@@ -179,7 +197,7 @@
       <!-- Left: forms -->
       <div id="landingForms" class="space-y-4">
         <!-- Create Room -->
-        <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300">
+        <div id="landingCreate" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300">
           <h2 class="font-semibold mb-3 flex items-center gap-2">
             <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Create Room
@@ -200,13 +218,13 @@
           </div>
 
           <button type="button" onclick="createRoom()"
-            class="w-full py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 rounded-xl font-medium text-sm transition-all active:scale-[0.98] text-white">
+            class="landing-action w-full py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 rounded-xl font-medium text-sm transition-all active:scale-[0.98] text-white">
             Create New Room
           </button>
         </div>
 
         <!-- Join Room -->
-        <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300">
+        <div id="landingJoin" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300">
           <h2 class="font-semibold mb-3 flex items-center gap-2">
             <svg class="w-5 h-5 text-fuchsia-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
             Join by Code
@@ -218,14 +236,14 @@
               class="dark-input input-focus flex-1 px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm placeholder-gray-500 transition-all">
           </div>
           <button type="button" onclick="joinRoom()"
-            class="w-full py-2.5 dark-bg-tertiary bg-[#2a2a3e] hover:bg-[#3a3a4e] rounded-xl font-medium text-sm transition-all active:scale-[0.98]">
+            class="landing-action w-full py-2.5 dark-bg-tertiary bg-[#2a2a3e] hover:bg-[#3a3a4e] rounded-xl font-medium text-sm transition-all active:scale-[0.98]">
             Join Room
           </button>
         </div>
       </div>
 
       <!-- Right: room list -->
-      <div class="mt-3 lg:mt-0 min-h-0 flex flex-col">
+      <div id="landingRooms" class="mt-3 lg:mt-0 min-h-0 flex flex-col">
         <div id="roomListCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300 flex-1 min-h-0">
           <div class="flex items-center justify-between mb-3">
             <h2 class="font-semibold flex items-center gap-2">
@@ -415,6 +433,6 @@
   </div>
 </main>
 
-<script src="assets/player.js?v=13"></script>
+<script src="assets/player.js?v=14"></script>
 </body>
 </html>

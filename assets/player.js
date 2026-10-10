@@ -93,6 +93,15 @@ function requireProfile() {
 }
 
 function setPlayerMode(mode) {
+  const song = state.queue[state.currentIndex];
+  let resumeAt = null;
+  let wasPlaying = false;
+  if (song && song.source === 'youtube' && !song.live && state.ytPlayer && state.ytReady) {
+    try {
+      resumeAt = state.ytPlayer.getCurrentTime() || 0;
+      wasPlaying = state.ytPlayer.getPlayerState() === 1;
+    } catch (e) {}
+  }
   state.playerMode = mode === 'video' ? 'video' : 'audio';
   localStorage.setItem('synctunes_player_mode', state.playerMode);
   document.body.classList.toggle('audio-only', state.playerMode === 'audio');
@@ -100,9 +109,24 @@ function setPlayerMode(mode) {
   document.getElementById('modeAudioBtn').classList.toggle('text-white', state.playerMode === 'audio');
   document.getElementById('modeVideoBtn').classList.toggle('bg-violet-600', state.playerMode === 'video');
   document.getElementById('modeVideoBtn').classList.toggle('text-white', state.playerMode === 'video');
-  const song = state.queue[state.currentIndex];
-  if (song && song.source === 'spotify') state.loadedKey = '';
-  if (song) playSongAtIndex(state.currentIndex, false);
+  if (song && song.source === 'spotify') {
+    state.loadedKey = '';
+    playSongAtIndex(state.currentIndex, false);
+  } else if (resumeAt !== null) {
+    const restore = () => {
+      if (!state.ytPlayer || !state.ytReady) return;
+      state.remoteSync = true;
+      try {
+        if (resumeAt > 1) state.ytPlayer.seekTo(resumeAt, true);
+        if (wasPlaying) state.ytPlayer.playVideo();
+        else state.ytPlayer.pauseVideo();
+      } catch (e) {}
+      state.ignoreProgressUntil = Date.now() + 2500;
+      state.remoteSync = false;
+    };
+    restore();
+    setTimeout(restore, 400);
+  }
   updateAudioCover(song || null);
 }
 
@@ -878,6 +902,17 @@ function sendChatMessage() {
     }))
     .catch((err) => showToast(err.message, 'error'));
 }
+function switchLandingTab(tab) {
+  const screen = document.getElementById('landingScreen');
+  if (!screen) return;
+  screen.dataset.landingTab = tab;
+  ['create', 'join', 'rooms'].forEach((name) => {
+    const btn = document.getElementById('landingTab' + name);
+    if (!btn) return;
+    const on = name === tab;
+    btn.className = 'flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ' + (on ? 'bg-violet-600 text-white' : 'text-gray-400');
+  });
+}
 function switchSideTab(tab) {
   const log = tab !== 'chat';
   document.getElementById('logList').style.display = log ? '' : 'none';
@@ -1010,7 +1045,7 @@ Object.assign(window, {
   toggleShuffle, toggleRepeat, sendChatMessage, setVolume,
   toggleTheme, switchMobileTab, onYouTubeIframeAPIReady,
   saveProfileFromGate, openProfileEditor, closeProfileEditor, saveProfileEdit, setPlayerMode,
-  toggleMute, chooseRole, switchSideTab,
+  toggleMute, chooseRole, switchSideTab, switchLandingTab,
 });
 
 window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
