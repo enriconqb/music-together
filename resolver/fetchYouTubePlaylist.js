@@ -58,40 +58,36 @@ async function fetchPlaylistChunk(url, playlistItems) {
 }
 
 async function fetchYouTubePlaylistEntries(url) {
-  const first = await ytDlpJson(url, buildPlaylistFlags());
+  const first = await ytDlpJson(url, buildPlaylistFlags({ playlistEnd: 1000 }));
   let entries = filterValidEntries(first.entries);
-  const total = resolvePlaylistTotal(first, entries);
+  const reported = resolvePlaylistTotal(first, entries);
   const ytdlpCount = entries.length;
 
-  if (entries.length < total) {
-    for (let start = entries.length + 1; start <= total; start += CHUNK_SIZE) {
-      const end = Math.min(start + CHUNK_SIZE - 1, total);
+  if (entries.length < reported) {
+    for (let start = entries.length + 1; start <= reported; start += CHUNK_SIZE) {
+      const end = Math.min(start + CHUNK_SIZE - 1, reported);
       const pageEntries = await fetchPlaylistChunk(url, `${start}-${end}`);
-
       if (!pageEntries.length) continue;
-
       entries = dedupeEntries(entries.concat(pageEntries));
-      if (entries.length >= total) break;
+      if (entries.length >= reported) break;
     }
   }
 
-  if (entries.length < total) {
-    try {
-      const innertube = await fetchPlaylistViaInnertube(url);
-      entries = dedupeEntries(entries.concat(innertube.entries));
-      console.log(
-        `[Playlist] yt-dlp: ${ytdlpCount}, innertube: ${innertube.entries.length}, `
-        + `gabungan: ${entries.length}, metadata: ${total}`,
-      );
-    } catch (error) {
-      console.warn(`[Playlist] Fallback InnerTube gagal: ${error.message}`);
-    }
+  try {
+    const innertube = await fetchPlaylistViaInnertube(url);
+    entries = dedupeEntries(entries.concat(innertube.entries));
+    console.error(
+      `[Playlist] yt-dlp: ${ytdlpCount}, innertube: ${innertube.entries.length}, `
+      + `gabungan: ${entries.length}, metadata: ${reported}`,
+    );
+  } catch (error) {
+    console.warn(`[Playlist] Fallback InnerTube gagal: ${error.message}`);
   }
 
   return {
     info: first,
     entries: dedupeEntries(entries),
-    playlistTotal: total,
+    playlistTotal: Math.max(reported, entries.length),
   };
 }
 

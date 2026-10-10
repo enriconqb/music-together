@@ -100,11 +100,11 @@ function resolveYouTubeFallback(string $query): array
 
 function youtubePlaylistFeed(string $playlistId): array
 {
-    $songs = youtubePlaylistRss($playlistId);
+    $songs = youtubePlaylistHtml($playlistId);
     if ($songs) {
         return $songs;
     }
-    return youtubePlaylistHtml($playlistId);
+    return youtubePlaylistRss($playlistId);
 }
 
 function youtubePlaylistRss(string $playlistId): array
@@ -135,9 +135,6 @@ function youtubePlaylistRss(string $playlistId): array
             'artist' => $artist,
             'duration' => 0,
         ];
-        if (count($songs) >= 100) {
-            break;
-        }
     }
     return $songs;
 }
@@ -152,14 +149,12 @@ function youtubePlaylistHtml(string $playlistId): array
         return [];
     }
     $songs = youtubePlaylistRenderers($html);
-    if ($songs) {
-        return $songs;
-    }
-    $songs = [];
-    $seen = [];
-    $offset = 0;
-    $marker = '"lockupMetadataViewModel":{"title":{"content":"';
-    while (($pos = strpos($html, $marker, $offset)) !== false && count($songs) < 100) {
+    if (!$songs) {
+        $songs = [];
+        $seen = [];
+        $offset = 0;
+        $marker = '"lockupMetadataViewModel":{"title":{"content":"';
+        while (($pos = strpos($html, $marker, $offset)) !== false) {
         $valueStart = $pos + strlen($marker);
         $titleRaw = '';
         $length = strlen($html);
@@ -193,8 +188,97 @@ function youtubePlaylistHtml(string $playlistId): array
             'artist' => 'YouTube',
             'duration' => 0,
         ];
+        }
+    }
+    return youtubeContinuePlaylist($html, $songs);
+}
+
+function youtubeContinuePlaylist(string $html, array $songs): array
+{
+    if (!preg_match('/"INNERTUBE_API_KEY":"([^"]+)"/', $html, $keyMatch)) {
+        return $songs;
+    }
+    $version = '2.20240101.00.00';
+    if (preg_match('/"INNERTUBE_CLIENT_VERSION":"([^"]+)"/', $html, $versionMatch)) {
+        $version = $versionMatch[1];
+    }
+    $token = youtubeContinuationToken($html);
+    $pages = 0;
+    while ($token && $pages < 30) {
+        $body = json_encode([
+            'context' => ['client' => ['clientName' => 'WEB', 'clientVersion' => $version, 'hl' => 'en', 'gl' => 'US']],
+            'continuation' => $token,
+        ]);
+        $raw = httpPostJson('https://www.youtube.com/youtubei/v1/browse?key=' . rawurlencode($keyMatch[1]), $body);
+        $data = json_decode($raw, true);
+        if (!is_array($data)) {
+            break;
+        }
+        $songs = youtubeMergePlaylistNodes($data, $songs);
+        $token = youtubeContinuationToken($raw);
+        $pages++;
     }
     return $songs;
+}
+
+function youtubeContinuationToken(string $raw): ?string
+{
+    if (!preg_match_all('/"token":"([A-Za-z0-9_\-]{80,})"/', $raw, $matches) || !$matches[1]) {
+        return null;
+    }
+    return $matches[1][count($matches[1]) - 1];
+}
+
+function youtubeMergePlaylistNodes(array $node, array $songs): array
+{
+    $seen = [];
+    foreach ($songs as $song) {
+        $seen[$song['videoId']] = true;
+    }
+    $walker = function ($value) use (&$walker, &$songs, &$seen) {
+        if (!is_array($value)) {
+            return;
+        }
+        $videoId = '';
+        $title = 'YouTube Video';
+        if (!empty($value['playlistVideoRenderer']['videoId'])) {
+            $videoId = (string)$value['playlistVideoRenderer']['videoId'];
+            $title = (string)($value['playlistVideoRenderer']['title']['runs'][0]['text'] ?? $title);
+        } elseif (!empty($value['lockupViewModel']['contentId']) && strlen((string)$value['lockupViewModel']['contentId']) === 11) {
+            $videoId = (string)$value['lockupViewModel']['contentId'];
+            $title = (string)($value['lockupViewModel']['metadata']['lockupMetadataViewModel']['title']['content'] ?? $title);
+        }
+        if ($videoId !== '' && !isset($seen[$videoId])) {
+            $seen[$videoId] = true;
+            $songs[] = ['videoId' => $videoId, 'title' => $title, 'artist' => 'YouTube', 'duration' => 0];
+        }
+        foreach ($value as $child) {
+            if (is_array($child)) {
+                $walker($child);
+            }
+        }
+    };
+    $walker($node);
+    return $songs;
+}
+
+function httpPostJson(string $url, string $body): string
+{
+    if (!function_exists('curl_init')) {
+        return '';
+    }
+    $ch = curl_init($url);
+    curl_setopt_array($ch, [
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 20,
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => $body,
+        CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
+        CURLOPT_USERAGENT => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36',
+    ]);
+    $raw = curl_exec($ch);
+    curl_close($ch);
+    return is_string($raw) ? $raw : '';
 }
 
 function youtubePlaylistRenderers(string $html): array
@@ -224,9 +308,6 @@ function youtubePlaylistRenderers(string $html): array
             'artist' => 'YouTube',
             'duration' => 0,
         ];
-        if (count($songs) >= 100) {
-            break;
-        }
     }
     return $songs;
 }

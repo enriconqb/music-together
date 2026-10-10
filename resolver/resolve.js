@@ -7,8 +7,6 @@ const YTDLP_FLAGS = {
   skipDownload: true,
 };
 
-const MAX_ENTRIES = 100;
-
 function canonicalYouTubeUrl(url) {
   try {
     const parsed = new URL(url.trim());
@@ -88,7 +86,7 @@ async function resolve(query) {
 
   if (isDirectUrl(trimmed) && isYouTubePlaylistUrl(trimmed)) {
     const { info, entries } = await fetchYouTubePlaylistEntries(trimmed);
-    const mapped = entries.map(mapEntry).filter(Boolean).slice(0, MAX_ENTRIES);
+    const mapped = entries.map(mapEntry).filter(Boolean);
     if (!mapped.length) throw new Error('Playlist kosong atau tidak dapat diakses.');
     return {
       type: 'playlist',
