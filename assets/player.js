@@ -557,10 +557,15 @@ function applyLocalVolume() {
   if (state.ytPlayer && state.ytReady) state.ytPlayer.setVolume(state.muted ? 0 : state.volume);
   const btn = document.getElementById('muteBtn');
   if (!btn) return;
-  btn.textContent = state.muted ? 'Muted' : 'Mute';
+  document.getElementById('muteLabel').textContent = state.muted ? 'Muted' : 'Mute';
+  document.getElementById('muteIconOff').classList.toggle('hidden', state.muted);
+  document.getElementById('muteIconOn').classList.toggle('hidden', !state.muted);
   btn.classList.toggle('bg-[#14532d]', state.muted);
+  btn.classList.toggle('border-green-800', state.muted);
   btn.classList.toggle('text-white', state.muted);
-  btn.classList.toggle('border-green-900', state.muted);
+  btn.classList.toggle('bg-[#1a1a2e]', !state.muted);
+  btn.classList.toggle('border-[#3a3a4e]', !state.muted);
+  btn.classList.toggle('text-gray-300', !state.muted);
 }
 
 function toggleMute() {
