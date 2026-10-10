@@ -159,6 +159,8 @@ function switchMobileTab(tab) {
 }
 
 function onYouTubeIframeAPIReady() {
+  if (state.ytPlayer) return;
+  window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
   state.ytPlayer = new YT.Player('yt-player', {
     height: '100%',
     width: '100%',
@@ -531,9 +533,22 @@ function togglePlayPause() {
     showToast('Gunakan kontrol di pemutar Spotify', 'info');
     return;
   }
-  if (!state.ytPlayer || !state.ytReady) return;
-  state.wantPlaying = null;
   const next = !state.isPlaying;
+  if (!state.ytPlayer || !state.ytReady) {
+    showToast('Pemutar belum siap, perintah tetap dikirim ke room', 'info');
+    state.isPlaying = next;
+    updatePlayPauseUI(next);
+    api('api/room.php', {
+      action: 'transport',
+      code: state.roomId,
+      userId: state.userId,
+      userName: state.userName,
+      isPlaying: next,
+      position: 0,
+    }).catch((err) => showToast(err.message, 'error'));
+    return;
+  }
+  state.wantPlaying = null;
   state.remoteSync = true;
   if (next) state.ytPlayer.playVideo();
   else state.ytPlayer.pauseVideo();
@@ -908,6 +923,7 @@ window.addEventListener('load', () => {
   setupRoomList();
   switchMobileTab('player');
   resumeRoom();
+  if (window.YT && YT.Player) onYouTubeIframeAPIReady();
 });
 
 window.addEventListener('pagehide', () => {
@@ -923,3 +939,6 @@ Object.assign(window, {
   saveProfileFromGate, openProfileEditor, closeProfileEditor, saveProfileEdit, setPlayerMode,
   toggleMute, chooseRole,
 });
+
+window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
+if (window.YT && YT.Player) onYouTubeIframeAPIReady();
