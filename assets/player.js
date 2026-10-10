@@ -10,6 +10,9 @@ const state = {
   ytPlayer: null,
   ytReady: false,
   volume: 80,
+  muted: false,
+  remoteSync: false,
+  wantPlaying: null,
   progressInterval: null,
   revision: 0,
   playNonce: 0,
@@ -165,20 +168,30 @@ function onYouTubeIframeAPIReady() {
 }
 function onPlayerReady(e) {
   state.ytReady = true;
-  e.target.setVolume(state.volume);
+  applyLocalVolume();
   const song = state.queue[state.currentIndex];
   if (song && song.source === 'youtube') playSongAtIndex(state.currentIndex, false);
 }
 function onPlayerStateChange(e) {
   if (e.data === YT.PlayerState.PLAYING) {
+    if (state.wantPlaying === false) {
+      state.wantPlaying = null;
+      state.remoteSync = true;
+      state.ytPlayer.pauseVideo();
+      return;
+    }
+    state.wantPlaying = null;
     state.isPlaying = true;
     updatePlayPauseUI(true);
     startProgressTracker();
+    if (!state.remoteSync) reportProgress(false);
+    state.remoteSync = false;
   } else if (e.data === YT.PlayerState.PAUSED) {
     state.isPlaying = false;
     updatePlayPauseUI(false);
     stopProgressTracker();
-    reportProgress(false);
+    if (!state.remoteSync) reportProgress(false);
+    state.remoteSync = false;
   } else if (e.data === YT.PlayerState.ENDED) {
     state.isPlaying = false;
     stopProgressTracker();
@@ -339,6 +352,7 @@ function enterRoom(room) {
   applyRoom(room, true);
   if (state.pollTimer) clearInterval(state.pollTimer);
   state.pollTimer = setInterval(pollRoom, 1500);
+  openRoleIfNeeded(room.code);
 }
 
 async function leaveRoom(silent) {
@@ -357,6 +371,9 @@ async function leaveRoom(silent) {
   document.getElementById('roomIdDisplay').textContent = 'No room';
   history.replaceState(null, '', location.pathname);
   try { sessionStorage.removeItem('synctunes_active_room'); } catch (e) {}
+  if (code) {
+    try { sessionStorage.removeItem('synctunes_role_' + code); } catch (e) {}
+  }
   if (state.ytPlayer && state.ytReady) {
     try { state.ytPlayer.stopVideo(); } catch (e) {}
   }
@@ -410,8 +427,11 @@ function applyRoom(room, initial) {
     document.getElementById('spotifyOverlay').classList.add('hidden');
     updateNowPlayingUI(null);
   } else if (indexChanged || initial) {
+    state.wantPlaying = !!room.isPlaying;
     if (initial) state.pendingSeek = resumeSeconds(room);
     playSongAtIndex(state.currentIndex, false);
+  } else {
+    syncPlayback(!!room.isPlaying);
   }
   state.applyingRemote = false;
 }
@@ -514,8 +534,61 @@ function togglePlayPause() {
     return;
   }
   if (!state.ytPlayer || !state.ytReady) return;
+  state.wantPlaying = null;
   if (state.isPlaying) state.ytPlayer.pauseVideo();
   else state.ytPlayer.playVideo();
+}
+
+function syncPlayback(isPlaying) {
+  const song = state.queue[state.currentIndex];
+  if (!song || song.source !== 'youtube' || !state.ytPlayer || !state.ytReady) return;
+  let playerState = -1;
+  try { playerState = state.ytPlayer.getPlayerState(); } catch (e) { return; }
+  if (isPlaying && playerState !== YT.PlayerState.PLAYING && playerState !== YT.PlayerState.BUFFERING) {
+    state.remoteSync = true;
+    state.ytPlayer.playVideo();
+  } else if (!isPlaying && (playerState === YT.PlayerState.PLAYING || playerState === YT.PlayerState.BUFFERING)) {
+    state.remoteSync = true;
+    state.ytPlayer.pauseVideo();
+  }
+}
+
+function applyLocalVolume() {
+  if (state.ytPlayer && state.ytReady) state.ytPlayer.setVolume(state.muted ? 0 : state.volume);
+  const btn = document.getElementById('muteBtn');
+  if (!btn) return;
+  btn.textContent = state.muted ? 'Muted' : 'Mute';
+  btn.classList.toggle('bg-[#14532d]', state.muted);
+  btn.classList.toggle('text-white', state.muted);
+  btn.classList.toggle('border-green-900', state.muted);
+}
+
+function toggleMute() {
+  state.muted = !state.muted;
+  if (state.roomId) {
+    try { sessionStorage.setItem('synctunes_role_' + state.roomId, state.muted ? 'requester' : 'speaker'); } catch (e) {}
+  }
+  applyLocalVolume();
+}
+
+function openRoleIfNeeded(code) {
+  let saved = '';
+  try { saved = sessionStorage.getItem('synctunes_role_' + code) || ''; } catch (e) {}
+  if (saved === 'speaker' || saved === 'requester') {
+    state.muted = saved === 'requester';
+    applyLocalVolume();
+    return;
+  }
+  document.getElementById('roleModal').classList.remove('hidden');
+}
+
+function chooseRole(role) {
+  state.muted = role === 'requester';
+  if (state.roomId) {
+    try { sessionStorage.setItem('synctunes_role_' + state.roomId, role); } catch (e) {}
+  }
+  document.getElementById('roleModal').classList.add('hidden');
+  applyLocalVolume();
 }
 
 function skipSong() {
@@ -743,7 +816,7 @@ function escapeHtml(t) {
 }
 function setVolume(v) {
   state.volume = parseInt(v, 10);
-  if (state.ytPlayer && state.ytReady) state.ytPlayer.setVolume(state.volume);
+  if (!state.muted) applyLocalVolume();
 }
 function toggleShuffle() {
   state.isShuffle = !state.isShuffle;
@@ -826,4 +899,5 @@ Object.assign(window, {
   toggleShuffle, toggleRepeat, sendChatMessage, setVolume,
   toggleTheme, switchMobileTab, onYouTubeIframeAPIReady,
   saveProfileFromGate, openProfileEditor, closeProfileEditor, saveProfileEdit, setPlayerMode,
+  toggleMute, chooseRole,
 });
