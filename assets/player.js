@@ -1,0 +1,616 @@
+const state = {
+  roomId: null,
+  userName: 'Guest',
+  userId: 'user_' + Math.random().toString(36).slice(2, 11),
+  queue: [],
+  currentIndex: -1,
+  isPlaying: false,
+  isShuffle: false,
+  isRepeat: false,
+  ytPlayer: null,
+  ytReady: false,
+  volume: 80,
+  progressInterval: null,
+  revision: 0,
+  playNonce: 0,
+  lastChat: 0,
+  pollTimer: null,
+  applyingRemote: false,
+  loadedKey: '',
+};
+
+function toggleTheme() {
+  document.body.classList.toggle('light');
+  const isLight = document.body.classList.contains('light');
+  document.getElementById('sunIcon').classList.toggle('hidden', !isLight);
+  document.getElementById('moonIcon').classList.toggle('hidden', isLight);
+  try { localStorage.setItem('synctunes_theme', isLight ? 'light' : 'dark'); } catch (e) {}
+}
+try {
+  if (localStorage.getItem('synctunes_theme') === 'light') document.body.classList.add('light');
+} catch (e) {}
+
+function switchMobileTab(tab) {
+  const ps = document.getElementById('playerScreen');
+  if (!ps) return;
+  ps.dataset.mobileTab = tab;
+  document.querySelectorAll('[data-tab-btn]').forEach((btn) => {
+    const active = btn.dataset.tabBtn === tab;
+    btn.classList.toggle('bg-violet-600', active);
+    btn.classList.toggle('text-white', active);
+    btn.classList.toggle('dark-text-muted', !active);
+  });
+}
+
+function onYouTubeIframeAPIReady() {
+  state.ytPlayer = new YT.Player('yt-player', {
+    height: '100%',
+    width: '100%',
+    playerVars: { playsinline: 1, rel: 0, modestbranding: 1 },
+    events: { onReady: onPlayerReady, onStateChange: onPlayerStateChange, onError: onPlayerError },
+  });
+}
+function onPlayerReady(e) {
+  state.ytReady = true;
+  e.target.setVolume(state.volume);
+  const song = state.queue[state.currentIndex];
+  if (song && song.source === 'youtube') playSongAtIndex(state.currentIndex, false);
+}
+function onPlayerStateChange(e) {
+  if (e.data === YT.PlayerState.PLAYING) {
+    state.isPlaying = true;
+    updatePlayPauseUI(true);
+    startProgressTracker();
+  } else if (e.data === YT.PlayerState.PAUSED) {
+    state.isPlaying = false;
+    updatePlayPauseUI(false);
+    stopProgressTracker();
+  } else if (e.data === YT.PlayerState.ENDED) {
+    state.isPlaying = false;
+    stopProgressTracker();
+    onSongEnd();
+  }
+}
+function onPlayerError() {
+  showToast('Lagu tidak tersedia, melewati...', 'warning');
+  setTimeout(() => skipSong(), 1200);
+}
+
+async function api(url, body) {
+  const res = await fetch(url, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  const data = await res.json().catch(() => ({ ok: false, error: 'Respons server tidak valid.' }));
+  if (!data.ok) throw new Error(data.error || 'Permintaan gagal.');
+  return data;
+}
+
+function renderRoomList(rooms) {
+  const container = document.getElementById('roomList');
+  const countEl = document.getElementById('roomListCount');
+  countEl.textContent = rooms.length + ' room' + (rooms.length !== 1 ? 's' : '');
+  if (!rooms.length) {
+    container.innerHTML = '<p class="dark-text-muted text-gray-500 text-sm text-center py-6">Belum ada room. Buat yang pertama.</p>';
+    return;
+  }
+  container.innerHTML = rooms.map((room) => `
+    <div class="flex items-center justify-between p-3 dark-bg-primary bg-[#0f0f1a] rounded-xl border dark-border border-[#2a2a3e]">
+      <div class="min-w-0 flex-1">
+        <div class="flex items-center gap-2">
+          <span class="font-mono font-bold text-violet-400 text-sm">${room.code}</span>
+          ${room.isPrivate ? '<span class="text-yellow-500 text-xs">terkunci</span>' : ''}
+        </div>
+        <p class="text-xs dark-text-muted text-gray-400 truncate">oleh ${escapeHtml(room.createdBy || 'Unknown')} · ${room.online || 0} online</p>
+      </div>
+      <button type="button" onclick="joinRoomFromList('${room.code}', ${room.isPrivate ? 'true' : 'false'})"
+        class="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg text-xs font-medium text-white ml-2">Join</button>
+    </div>`).join('');
+}
+
+async function setupRoomList() {
+  const statusEl = document.getElementById('fbStatus');
+  try {
+    const data = await api('api/room.php', { action: 'list' });
+    statusEl.innerHTML = '<span class="text-green-400">●</span> Server lokal aktif';
+    renderRoomList(data.rooms || []);
+  } catch (err) {
+    statusEl.innerHTML = '<span class="text-red-400">●</span> Server tidak terjangkau';
+    document.getElementById('roomList').innerHTML = '<p class="text-sm text-center text-red-400 py-6">Gagal memuat room.</p>';
+  }
+}
+
+async function createRoom() {
+  const name = document.getElementById('createRoomName').value.trim() || 'Host';
+  const isPrivate = document.getElementById('privateRoomCheck').checked;
+  const password = isPrivate ? document.getElementById('roomPassword').value.trim() : '';
+  if (isPrivate && !password) {
+    showToast('Isi password untuk room privat', 'error');
+    return;
+  }
+  state.userName = name;
+  try {
+    const data = await api('api/room.php', { action: 'create', userName: name, userId: state.userId, password });
+    enterRoom(data.room);
+  } catch (err) {
+    showToast(err.message, 'error');
+  }
+}
+
+async function joinRoom() {
+  const code = document.getElementById('joinRoomCode').value.trim().toUpperCase();
+  const name = document.getElementById('joinUserName').value.trim() || 'Guest';
+  if (!/^[A-Z0-9]{6}$/.test(code)) {
+    showToast('Kode room harus 6 karakter', 'error');
+    return;
+  }
+  let password = '';
+  const listed = document.querySelector(`[onclick*="${code}"]`);
+  if (listed && listed.getAttribute('onclick').includes('true')) {
+    password = prompt('Room ini privat. Masukkan password:') || '';
+  }
+  state.userName = name;
+  try {
+    const data = await api('api/room.php', { action: 'join', code, userName: name, userId: state.userId, password });
+    enterRoom(data.room);
+  } catch (err) {
+    if (err.message === 'Password salah.' || err.message.includes('Password')) {
+      const retry = prompt('Password salah atau diperlukan. Masukkan password:') || '';
+      try {
+        const data = await api('api/room.php', { action: 'join', code, userName: name, userId: state.userId, password: retry });
+        enterRoom(data.room);
+        return;
+      } catch (e2) {
+        showToast(e2.message, 'error');
+        return;
+      }
+    }
+    showToast(err.message, 'error');
+  }
+}
+
+function joinRoomFromList(code, isPrivate) {
+  document.getElementById('joinRoomCode').value = code;
+  if (!document.getElementById('joinUserName').value.trim()) {
+    document.getElementById('joinUserName').value = 'Guest';
+  }
+  if (isPrivate) {
+    const password = prompt('Room ini privat. Masukkan password:') || '';
+    state.userName = document.getElementById('joinUserName').value.trim() || 'Guest';
+    api('api/room.php', {
+      action: 'join',
+      code,
+      userName: state.userName,
+      userId: state.userId,
+      password,
+    }).then((data) => enterRoom(data.room)).catch((err) => showToast(err.message, 'error'));
+    return;
+  }
+  joinRoom();
+}
+
+function enterRoom(room) {
+  state.roomId = room.code;
+  state.revision = 0;
+  state.playNonce = 0;
+  state.lastChat = 0;
+  state.loadedKey = '';
+  document.getElementById('chatMessages').innerHTML = '';
+  document.getElementById('landingScreen').classList.add('hidden');
+  document.getElementById('playerScreen').classList.remove('hidden');
+  document.getElementById('roomInfo').classList.remove('hidden');
+  document.getElementById('roomInfo').classList.add('sm:flex');
+  document.getElementById('leaveBtn').classList.remove('hidden');
+  document.getElementById('roomIdDisplay').textContent = room.code;
+  document.getElementById('roomIdDisplayMobile').textContent = room.code;
+  document.getElementById('onlineIndicator').classList.remove('hidden');
+  document.getElementById('onlineIndicator').classList.add('flex');
+  history.replaceState(null, '', '#' + room.code);
+  applyRoom(room, true);
+  if (state.pollTimer) clearInterval(state.pollTimer);
+  state.pollTimer = setInterval(pollRoom, 1500);
+}
+
+async function leaveRoom() {
+  const code = state.roomId;
+  if (state.pollTimer) clearInterval(state.pollTimer);
+  state.pollTimer = null;
+  if (code) {
+    api('api/room.php', { action: 'leave', code, userId: state.userId, userName: state.userName }).catch(() => {});
+  }
+  state.roomId = null;
+  state.queue = [];
+  state.currentIndex = -1;
+  document.getElementById('playerScreen').classList.add('hidden');
+  document.getElementById('landingScreen').classList.remove('hidden');
+  document.getElementById('leaveBtn').classList.add('hidden');
+  document.getElementById('roomIdDisplay').textContent = 'No room';
+  history.replaceState(null, '', location.pathname);
+  if (state.ytPlayer && state.ytReady) {
+    try { state.ytPlayer.stopVideo(); } catch (e) {}
+  }
+  setupRoomList();
+}
+
+async function pollRoom() {
+  if (!state.roomId) return;
+  try {
+    const data = await api('api/room.php', {
+      action: 'state',
+      code: state.roomId,
+      userId: state.userId,
+      userName: state.userName,
+      sinceChat: state.lastChat,
+    });
+    applyRoom(data.room, false);
+  } catch (err) {
+    console.warn(err);
+  }
+}
+
+function applyRoom(room, initial) {
+  state.applyingRemote = true;
+  const indexChanged = room.currentIndex !== state.currentIndex || room.playNonce !== state.playNonce;
+  state.queue = room.queue || [];
+  state.currentIndex = room.currentIndex;
+  state.revision = room.revision;
+  state.playNonce = room.playNonce || 0;
+  updateQueueUI();
+  const count = (room.online || []).length;
+  document.getElementById('onlineCount').textContent = count + ' online';
+  (room.chat || []).forEach((msg) => {
+    if (msg.time > state.lastChat) {
+      appendChatMessage(msg);
+      state.lastChat = msg.time;
+    }
+  });
+  if (state.currentIndex < 0 || !state.queue[state.currentIndex]) {
+    document.getElementById('noSongOverlay').classList.remove('hidden');
+    document.getElementById('spotifyOverlay').classList.add('hidden');
+    updateNowPlayingUI(null);
+  } else if (indexChanged || initial) {
+    playSongAtIndex(state.currentIndex, false);
+  }
+  state.applyingRemote = false;
+}
+
+async function addSongFromInput() {
+  const input = document.getElementById('songUrlInput');
+  const q = input.value.trim();
+  if (!q || !state.roomId) return;
+  input.disabled = true;
+  showToast('Membaca tautan...', 'info');
+  try {
+    const parsed = await fetch('api/parse.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: new URLSearchParams({ q }),
+    }).then((r) => r.json());
+    if (!parsed.ok) throw new Error(parsed.error || 'Gagal membaca tautan.');
+    input.value = '';
+    const data = await api('api/room.php', {
+      action: 'add',
+      code: state.roomId,
+      userId: state.userId,
+      userName: state.userName,
+      songs: parsed.songs,
+    });
+    showToast('Ditambahkan: ' + (parsed.songs.length > 1 ? parsed.songs.length + ' lagu' : parsed.songs[0].title), 'success');
+    applyRoom({ ...data.room, chat: [] }, false);
+  } catch (err) {
+    showToast(err.message, 'error');
+  } finally {
+    input.disabled = false;
+  }
+}
+
+function songKey(song) {
+  if (!song) return '';
+  if (song.source === 'youtube') return 'yt:' + song.videoId;
+  return 'sp:' + song.spotifyType + ':' + song.spotifyId;
+}
+
+function playSongAtIndex(index, broadcast) {
+  if (index < 0 || index >= state.queue.length) return;
+  state.currentIndex = index;
+  const song = state.queue[index];
+  updateNowPlayingUI(song);
+  const key = songKey(song) + ':' + state.playNonce;
+  if (song.source === 'youtube') {
+    document.getElementById('spotifyOverlay').classList.add('hidden');
+    document.getElementById('noSongOverlay').classList.add('hidden');
+    if (state.ytPlayer && state.ytReady) {
+      if (state.loadedKey !== key) {
+        state.ytPlayer.loadVideoById(song.videoId);
+        state.ytPlayer.setVolume(state.volume);
+        state.loadedKey = key;
+      }
+    }
+  } else {
+    document.getElementById('noSongOverlay').classList.add('hidden');
+    document.getElementById('spotifyOverlay').classList.remove('hidden');
+    if (state.ytPlayer && state.ytReady) {
+      try { state.ytPlayer.pauseVideo(); } catch (e) {}
+    }
+    if (state.loadedKey !== key) {
+      const c = document.getElementById('spotifyEmbedContainer');
+      const height = song.spotifyType === 'track' || song.spotifyType === 'episode' ? '152' : '380';
+      c.innerHTML = '';
+      const iframe = document.createElement('iframe');
+      iframe.src = `https://open.spotify.com/embed/${song.spotifyType}/${song.spotifyId}?utm_source=generator`;
+      iframe.width = '100%';
+      iframe.height = height;
+      iframe.frameBorder = '0';
+      iframe.allow = 'autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture';
+      iframe.style.borderRadius = '12px';
+      c.appendChild(iframe);
+      state.loadedKey = key;
+    }
+  }
+  if (broadcast) {
+    api('api/room.php', {
+      action: 'play',
+      code: state.roomId,
+      userId: state.userId,
+      userName: state.userName,
+      index,
+    }).then((data) => {
+      state.playNonce = data.room.playNonce;
+    }).catch((err) => showToast(err.message, 'error'));
+  }
+}
+
+function togglePlayPause() {
+  const song = state.queue[state.currentIndex];
+  if (!song) return;
+  if (song.source !== 'youtube') {
+    showToast('Gunakan kontrol di pemutar Spotify', 'info');
+    return;
+  }
+  if (!state.ytPlayer || !state.ytReady) return;
+  if (state.isPlaying) state.ytPlayer.pauseVideo();
+  else state.ytPlayer.playVideo();
+}
+
+function skipSong() {
+  if (!state.queue.length) return;
+  let next;
+  if (state.isShuffle) {
+    next = Math.floor(Math.random() * state.queue.length);
+  } else {
+    next = state.currentIndex + 1;
+    if (next >= state.queue.length) {
+      if (state.isRepeat) next = 0;
+      else {
+        showToast('Akhir antrian', 'info');
+        return;
+      }
+    }
+  }
+  playSongAtIndex(next, true);
+}
+
+function playPrevious() {
+  if (!state.queue.length) return;
+  if (state.ytPlayer && state.ytReady && state.ytPlayer.getCurrentTime() > 3) {
+    state.ytPlayer.seekTo(0);
+    return;
+  }
+  let prev = state.currentIndex - 1;
+  if (prev < 0) prev = state.isRepeat ? state.queue.length - 1 : 0;
+  playSongAtIndex(prev, true);
+}
+
+function onSongEnd() {
+  if (state.isRepeat) playSongAtIndex(state.currentIndex, true);
+  else skipSong();
+}
+
+function removeFromQueue(songId) {
+  api('api/room.php', { action: 'remove', code: state.roomId, userId: state.userId, userName: state.userName, songId })
+    .then((data) => applyRoom({ ...data.room, chat: [] }, false))
+    .catch((err) => showToast(err.message, 'error'));
+}
+function playNow(songId) {
+  const idx = state.queue.findIndex((s) => s.id === songId);
+  if (idx >= 0) playSongAtIndex(idx, true);
+}
+function clearQueue() {
+  if (!confirm('Kosongkan seluruh antrian?')) return;
+  api('api/room.php', { action: 'clear', code: state.roomId, userId: state.userId, userName: state.userName })
+    .then((data) => applyRoom({ ...data.room, chat: [] }, false))
+    .catch((err) => showToast(err.message, 'error'));
+}
+function shuffleQueue() {
+  if (state.queue.length < 2) return;
+  const ids = state.queue.map((s) => s.id);
+  for (let i = ids.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [ids[i], ids[j]] = [ids[j], ids[i]];
+  }
+  api('api/room.php', { action: 'reorder', code: state.roomId, userId: state.userId, userName: state.userName, order: ids })
+    .then((data) => applyRoom({ ...data.room, chat: [] }, false))
+    .catch((err) => showToast(err.message, 'error'));
+}
+
+function updateQueueUI() {
+  const container = document.getElementById('queueList');
+  const countEl = document.getElementById('queueCount');
+  if (!container) return;
+  if (!state.queue.length) {
+    container.innerHTML = '<div class="text-center py-8 dark-text-muted text-gray-600 text-sm">Antrian kosong</div>';
+    countEl.textContent = '0 lagu';
+    return;
+  }
+  countEl.textContent = state.queue.length + ' lagu';
+  container.innerHTML = state.queue.map((song, i) => {
+    const isActive = i === state.currentIndex;
+    const icon = song.source === 'youtube' ? '▶' : '♫';
+    return `<div class="flex items-center gap-2 p-2 rounded-lg ${isActive ? 'bg-violet-600/20 border border-violet-500/30' : 'dark-hover hover:bg-[#252540]'} group" draggable="true" data-song-id="${song.id}">
+      <div class="text-xs w-4 text-center">${icon}</div>
+      <div class="flex-1 min-w-0">
+        <p class="text-xs sm:text-sm font-medium truncate ${isActive ? 'text-violet-400' : ''}">${escapeHtml(song.title)}</p>
+        <p class="text-[10px] text-gray-500 truncate">${escapeHtml(song.artist)} · ${escapeHtml(song.addedBy || '')}</p>
+      </div>
+      <div class="flex gap-0.5 opacity-0 group-hover:opacity-100">
+        <button type="button" onclick="playNow('${song.id}')" class="p-1 text-gray-400 hover:text-violet-400" title="Putar">▶</button>
+        <button type="button" onclick="removeFromQueue('${song.id}')" class="p-1 text-gray-400 hover:text-red-400" title="Hapus">✕</button>
+      </div>
+    </div>`;
+  }).join('');
+  setupDragAndDrop();
+}
+
+function updateNowPlayingUI(song) {
+  if (!song) {
+    document.getElementById('nowPlayingTitle').textContent = 'Tidak ada lagu';
+    document.getElementById('nowPlayingArtist').textContent = '—';
+    document.getElementById('nowPlayingSource').textContent = '—';
+    document.getElementById('nowPlayingAddedBy').textContent = '';
+    document.getElementById('currentTime').textContent = '0:00';
+    document.getElementById('totalTime').textContent = '0:00';
+    document.getElementById('progressBar').style.width = '0%';
+    return;
+  }
+  document.getElementById('nowPlayingTitle').textContent = song.title || 'Unknown';
+  document.getElementById('nowPlayingArtist').textContent = song.artist || 'Unknown';
+  document.getElementById('nowPlayingSource').textContent = song.source === 'youtube' ? 'YouTube' : 'Spotify';
+  document.getElementById('nowPlayingAddedBy').textContent = song.addedBy ? 'oleh ' + song.addedBy : '';
+}
+
+function updatePlayPauseUI(isPlaying) {
+  document.getElementById('playIcon').classList.toggle('hidden', isPlaying);
+  document.getElementById('pauseIcon').classList.toggle('hidden', !isPlaying);
+}
+function startProgressTracker() {
+  stopProgressTracker();
+  state.progressInterval = setInterval(() => {
+    if (!state.ytPlayer || !state.ytReady || !state.isPlaying) return;
+    const cur = state.ytPlayer.getCurrentTime() || 0;
+    const tot = state.ytPlayer.getDuration() || 0;
+    document.getElementById('currentTime').textContent = formatTime(cur);
+    document.getElementById('totalTime').textContent = formatTime(tot);
+    if (tot > 0) document.getElementById('progressBar').style.width = ((cur / tot) * 100) + '%';
+  }, 500);
+}
+function stopProgressTracker() {
+  if (state.progressInterval) clearInterval(state.progressInterval);
+  state.progressInterval = null;
+}
+
+function setupDragAndDrop() {
+  let draggedId = null;
+  document.querySelectorAll('[data-song-id]').forEach((el) => {
+    el.addEventListener('dragstart', () => { draggedId = el.dataset.songId; });
+    el.addEventListener('dragover', (e) => e.preventDefault());
+    el.addEventListener('drop', (e) => {
+      e.preventDefault();
+      if (draggedId && draggedId !== el.dataset.songId) reorderQueue(draggedId, el.dataset.songId);
+    });
+  });
+}
+function reorderQueue(fromId, toId) {
+  const ids = state.queue.map((s) => s.id);
+  const fi = ids.indexOf(fromId);
+  const ti = ids.indexOf(toId);
+  if (fi < 0 || ti < 0) return;
+  ids.splice(ti, 0, ids.splice(fi, 1)[0]);
+  api('api/room.php', { action: 'reorder', code: state.roomId, userId: state.userId, userName: state.userName, order: ids })
+    .then((data) => applyRoom({ ...data.room, chat: [] }, false))
+    .catch((err) => showToast(err.message, 'error'));
+}
+
+function sendChatMessage() {
+  const input = document.getElementById('chatInput');
+  const text = input.value.trim();
+  if (!text || !state.roomId) return;
+  input.value = '';
+  api('api/room.php', { action: 'chat', code: state.roomId, userId: state.userId, userName: state.userName, text })
+    .then((data) => (data.room.chat || []).forEach((msg) => {
+      if (msg.time > state.lastChat) {
+        appendChatMessage(msg);
+        state.lastChat = msg.time;
+      }
+    }))
+    .catch((err) => showToast(err.message, 'error'));
+}
+function appendChatMessage(msg) {
+  const c = document.getElementById('chatMessages');
+  const isOwn = msg.user === state.userName;
+  const div = document.createElement('div');
+  div.className = 'fade-in';
+  div.innerHTML = `<div class="flex ${isOwn ? 'justify-end' : 'justify-start'}">
+    <div class="max-w-[80%] ${isOwn ? 'bg-violet-600/30 border-violet-500/20' : 'bg-[#252540] border-[#3a3a4e]'} rounded-xl px-3 py-2 border">
+      <p class="text-[10px] ${isOwn ? 'text-violet-300' : 'text-gray-400'} font-medium mb-0.5">${escapeHtml(msg.user)}</p>
+      <p class="text-xs break-words">${escapeHtml(msg.text)}</p>
+    </div></div>`;
+  c.appendChild(div);
+  c.scrollTop = c.scrollHeight;
+}
+
+function formatTime(s) {
+  if (!s || isNaN(s)) return '0:00';
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return m + ':' + (sec < 10 ? '0' : '') + sec;
+}
+function escapeHtml(t) {
+  if (!t) return '';
+  const d = document.createElement('div');
+  d.textContent = t;
+  return d.innerHTML;
+}
+function setVolume(v) {
+  state.volume = parseInt(v, 10);
+  if (state.ytPlayer && state.ytReady) state.ytPlayer.setVolume(state.volume);
+}
+function toggleShuffle() {
+  state.isShuffle = !state.isShuffle;
+  document.getElementById('shuffleBtn').classList.toggle('text-violet-400', state.isShuffle);
+}
+function toggleRepeat() {
+  state.isRepeat = !state.isRepeat;
+  document.getElementById('repeatBtn').classList.toggle('text-violet-400', state.isRepeat);
+}
+function showToast(msg, type = 'info') {
+  const colors = {
+    success: 'bg-green-600/90 text-white',
+    error: 'bg-red-600/90 text-white',
+    warning: 'bg-yellow-500/90 text-black',
+    info: 'bg-violet-600/90 text-white',
+  };
+  const t = document.createElement('div');
+  t.className = `fixed bottom-4 left-1/2 -translate-x-1/2 z-[100] px-4 py-2.5 rounded-xl text-sm font-medium shadow-lg ${colors[type] || colors.info}`;
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 2400);
+}
+
+document.getElementById('progressBarContainer')?.addEventListener('click', function (e) {
+  if (!state.ytPlayer || !state.ytReady) return;
+  const song = state.queue[state.currentIndex];
+  if (!song || song.source !== 'youtube') return;
+  const r = this.getBoundingClientRect();
+  const pct = (e.clientX - r.left) / r.width;
+  const d = state.ytPlayer.getDuration() || 0;
+  if (d > 0) state.ytPlayer.seekTo(pct * d);
+});
+
+window.addEventListener('load', () => {
+  setupRoomList();
+  switchMobileTab('player');
+  const hash = window.location.hash.replace('#', '').toUpperCase();
+  if (/^[A-Z0-9]{6}$/.test(hash)) {
+    document.getElementById('joinRoomCode').value = hash;
+    showToast('Kode room dari URL terdeteksi', 'info');
+  }
+});
+
+Object.assign(window, {
+  createRoom, joinRoom, joinRoomFromList, leaveRoom,
+  addSongFromInput, togglePlayPause, skipSong, playPrevious,
+  removeFromQueue, playNow, clearQueue, shuffleQueue,
+  toggleShuffle, toggleRepeat, sendChatMessage, setVolume,
+  toggleTheme, switchMobileTab, onYouTubeIframeAPIReady,
+});
