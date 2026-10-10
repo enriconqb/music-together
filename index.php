@@ -351,13 +351,14 @@
 
         <!-- Chat -->
         <div id="tabContentChat" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col mt-4 lg:max-h-[40vh] max-h-[60vh] transition-colors">
-          <div class="flex items-center justify-between p-3 sm:p-4 border-b dark-border border-[#2a2a3e]">
-            <h3 class="font-semibold text-sm flex items-center gap-2">
-              <svg class="w-4 h-4 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-              Chat
-            </h3>
-            <span id="chatUserCount" class="text-xs dark-text-muted text-gray-500">0 users</span>
+          <div class="flex items-center gap-1 p-2 border-b dark-border border-[#2a2a3e]">
+            <button type="button" id="tabLogBtn" onclick="switchSideTab('log')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white">Log</button>
+            <button type="button" id="tabChatBtn" onclick="switchSideTab('chat')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400">Chat</button>
           </div>
+          <div id="logList" class="flex-1 overflow-y-auto p-3 space-y-1 min-h-[150px] no-scrollbar">
+            <div class="text-center text-xs dark-text-muted text-gray-600 py-4">Belum ada aktivitas</div>
+          </div>
+          <div id="chatPane" class="flex flex-1 flex-col min-h-0" style="display:none">
           <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-2 min-h-[150px] no-scrollbar">
             <div class="text-center text-xs dark-text-muted text-gray-600 py-4">Welcome! Say hi 👋</div>
           </div>
@@ -371,12 +372,13 @@
               </button>
             </div>
           </div>
+          </div>
         </div>
       </div>
     </div>
   </div>
 </main>
 
-<script src="assets/player.js?v=6"></script>
+<script src="assets/player.js?v=7"></script>
 </body>
 </html>

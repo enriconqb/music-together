@@ -162,8 +162,21 @@ function publicRoom(array $room, bool $includeChat = true): array
     ];
     if ($includeChat) {
         $out['chat'] = array_values($room['chat'] ?? []);
+        $out['log'] = array_values($room['log'] ?? []);
     }
     return $out;
+}
+
+function appendLog(array &$room, string $name, string $text): void
+{
+    $log = $room['log'] ?? [];
+    $log[] = [
+        'id' => bin2hex(random_bytes(4)),
+        'user' => substr(trim($name), 0, 20) ?: 'Guest',
+        'text' => substr($text, 0, 160),
+        'time' => (int)(microtime(true) * 1000),
+    ];
+    $room['log'] = array_slice($log, -80);
 }
 
 function touchUser(array &$room, array $input): void
@@ -233,10 +246,12 @@ function createRoom(string $dir, array $input): array
         'isPlaying' => false,
         'revision' => 1,
         'chat' => [],
+        'log' => [],
         'users' => [],
     ];
     $input['userName'] = $name;
     touchUser($room, $input);
+    appendLog($room, $name, 'membuat room dan masuk');
     file_put_contents($path, json_encode($room, JSON_UNESCAPED_UNICODE), LOCK_EX);
     return ['ok' => true, 'room' => publicRoom($room)];
 }
@@ -260,6 +275,7 @@ function joinRoom(string $dir, array $input): array
             }
             touchUser($room, $input);
             $room['revision'] = (int)($room['revision'] ?? 0) + 1;
+            appendLog($room, (string)($input['userName'] ?? 'Guest'), 'masuk room');
             return $room;
         });
     } catch (RuntimeException $e) {
@@ -281,6 +297,7 @@ function readState(string $dir, array $input): array
         return ['ok' => false, 'error' => 'Room tidak ditemukan.'];
     }
     $since = (int)($input['sinceChat'] ?? 0);
+    $sinceLog = (int)($input['sinceLog'] ?? 0);
     $room = withRoom($path, function (array $room) use ($input) {
         touchUser($room, $input);
         return $room;
@@ -289,7 +306,8 @@ function readState(string $dir, array $input): array
         return ['ok' => true, 'deleted' => true];
     }
     $pub = publicRoom($room);
-    $pub['chat'] = array_values(array_filter($pub['chat'], fn($msg) => (int)($msg['time'] ?? 0) > $since));
+    $pub['chat'] = array_values(array_filter($pub['chat'] ?? [], fn($msg) => (int)($msg['time'] ?? 0) > $since));
+    $pub['log'] = array_values(array_filter($pub['log'] ?? [], fn($msg) => (int)($msg['time'] ?? 0) > $sinceLog));
     return ['ok' => true, 'room' => $pub];
 }
 
@@ -315,6 +333,9 @@ function mutate(string $dir, array $input, string $op): array
                     $queue[] = normalizeSong($song, (string)($input['userName'] ?? 'Guest'));
                 }
                 $room['queue'] = $queue;
+                $titles = array_map(fn($s) => (string)($s['title'] ?? 'lagu'), array_slice($queue, -count($input['songs'] ?? [])));
+                $label = count($titles) > 1 ? 'menambah ' . count($titles) . ' lagu' : 'menambah ' . ($titles[0] ?? 'lagu');
+                appendLog($room, (string)($input['userName'] ?? 'Guest'), $label);
                 if ((int)$room['currentIndex'] < 0 && count($queue) > 0) {
                     $room['currentIndex'] = 0;
                     $room['isPlaying'] = true;
@@ -341,6 +362,7 @@ function mutate(string $dir, array $input, string $op): array
                 }
                 $room['queue'] = $next;
                 $room['currentIndex'] = $index;
+                appendLog($room, (string)($input['userName'] ?? 'Guest'), 'menghapus lagu dari antrian');
             } elseif ($op === 'reorder') {
                 $ids = array_values(array_filter(array_map('strval', $input['order'] ?? [])));
                 $byId = [];
@@ -354,6 +376,7 @@ function mutate(string $dir, array $input, string $op): array
                     }
                 }
                 $room['queue'] = $next;
+                appendLog($room, (string)($input['userName'] ?? 'Guest'), 'mengacak antrian');
             } elseif ($op === 'play') {
                 $index = (int)($input['index'] ?? -1);
                 if ($index >= 0 && $index < count($queue)) {
@@ -362,11 +385,14 @@ function mutate(string $dir, array $input, string $op): array
                     $room['playNonce'] = (int)($room['playNonce'] ?? 0) + 1;
                     $room['position'] = 0;
                     $room['positionAt'] = (int)(microtime(true) * 1000);
+                    $title = (string)($queue[$index]['title'] ?? 'lagu');
+                    appendLog($room, (string)($input['userName'] ?? 'Guest'), 'memutar ' . $title);
                 }
             } elseif ($op === 'clear') {
                 $room['queue'] = [];
                 $room['currentIndex'] = -1;
                 $room['isPlaying'] = false;
+                appendLog($room, (string)($input['userName'] ?? 'Guest'), 'mengosongkan antrian');
             } elseif ($op === 'chat') {
                 $text = substr(trim((string)($input['text'] ?? '')), 0, 200);
                 if ($text !== '') {
@@ -382,6 +408,7 @@ function mutate(string $dir, array $input, string $op): array
             } elseif ($op === 'leave') {
                 $id = (string)($input['userId'] ?? '');
                 unset($room['users'][$id]);
+                appendLog($room, (string)($input['userName'] ?? 'Guest'), 'keluar room');
             }
             return $room;
         });
@@ -432,6 +459,7 @@ function saveTransport(string $dir, array $input): array
         $room['isPlaying'] = !empty($input['isPlaying']);
         $room['position'] = max(0, (float)($input['position'] ?? 0));
         $room['positionAt'] = (int)(microtime(true) * 1000);
+        appendLog($room, (string)($input['userName'] ?? 'Guest'), !empty($input['isPlaying']) ? 'menekan play' : 'menekan pause');
         return $room;
     });
     if (!empty($room['_deleted'])) {

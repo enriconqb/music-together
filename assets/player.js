@@ -17,6 +17,7 @@ const state = {
   revision: 0,
   playNonce: 0,
   lastChat: 0,
+  lastLog: 0,
   pollTimer: null,
   applyingRemote: false,
   loadedKey: '',
@@ -342,8 +343,11 @@ function enterRoom(room) {
   state.revision = 0;
   state.playNonce = 0;
   state.lastChat = 0;
+  state.lastLog = 0;
   state.loadedKey = '';
   document.getElementById('chatMessages').innerHTML = '';
+  document.getElementById('logList').innerHTML = '';
+  switchSideTab('log');
   document.getElementById('landingScreen').classList.add('hidden');
   document.getElementById('playerScreen').classList.remove('hidden');
   document.getElementById('roomInfo').classList.remove('hidden');
@@ -395,6 +399,7 @@ async function pollRoom() {
       userId: state.userId,
       userName: state.userName,
       sinceChat: state.lastChat,
+      sinceLog: state.lastLog,
     });
     if (data.deleted) {
       showToast('Room ditutup karena kosong', 'info');
@@ -426,6 +431,12 @@ function applyRoom(room, initial) {
     if (msg.time > state.lastChat) {
       appendChatMessage(msg);
       state.lastChat = msg.time;
+    }
+  });
+  (room.log || []).forEach((entry) => {
+    if (entry.time > state.lastLog) {
+      appendLogEntry(entry);
+      state.lastLog = entry.time;
     }
   });
   if (state.currentIndex < 0 || !state.queue[state.currentIndex]) {
@@ -842,6 +853,24 @@ function sendChatMessage() {
     }))
     .catch((err) => showToast(err.message, 'error'));
 }
+function switchSideTab(tab) {
+  const log = tab !== 'chat';
+  document.getElementById('logList').style.display = log ? '' : 'none';
+  document.getElementById('chatPane').style.display = log ? 'none' : 'flex';
+  document.getElementById('tabLogBtn').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg ' + (log ? 'bg-violet-600 text-white' : 'text-gray-400');
+  document.getElementById('tabChatBtn').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg ' + (!log ? 'bg-violet-600 text-white' : 'text-gray-400');
+}
+function appendLogEntry(entry) {
+  const list = document.getElementById('logList');
+  const empty = list.querySelector('.text-center');
+  if (empty) empty.remove();
+  const time = new Date(entry.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
+  const row = document.createElement('p');
+  row.className = 'text-xs text-gray-300 leading-relaxed';
+  row.textContent = time + ' · ' + entry.user + ' ' + entry.text;
+  list.appendChild(row);
+  list.scrollTop = list.scrollHeight;
+}
 function appendChatMessage(msg) {
   const c = document.getElementById('chatMessages');
   const isOwn = msg.user === state.userName;
@@ -954,7 +983,7 @@ Object.assign(window, {
   toggleShuffle, toggleRepeat, sendChatMessage, setVolume,
   toggleTheme, switchMobileTab, onYouTubeIframeAPIReady,
   saveProfileFromGate, openProfileEditor, closeProfileEditor, saveProfileEdit, setPlayerMode,
-  toggleMute, chooseRole,
+  toggleMute, chooseRole, switchSideTab,
 });
 
 window.onYouTubeIframeAPIReady = onYouTubeIframeAPIReady;
