@@ -1,6 +1,8 @@
 <?php
 declare(strict_types=1);
 
+require __DIR__ . '/json_guard.php';
+
 header('Content-Type: application/json; charset=utf-8');
 
 $raw = file_get_contents('php://input');

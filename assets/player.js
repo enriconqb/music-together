@@ -196,9 +196,23 @@ async function api(url, body) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   });
-  const data = await res.json().catch(() => ({ ok: false, error: 'Respons server tidak valid.' }));
+  const data = await readJson(res);
   if (!data.ok) throw new Error(data.error || 'Permintaan gagal.');
   return data;
+}
+
+async function readJson(res) {
+  const text = await res.text();
+  const trimmed = text.trim();
+  if (trimmed.startsWith('{') || trimmed.startsWith('[')) {
+    try { return JSON.parse(trimmed); } catch (e) {}
+  }
+  const embedded = trimmed.match(/\{[\s\S]*\}\s*$/);
+  if (embedded) {
+    try { return JSON.parse(embedded[0]); } catch (e) {}
+  }
+  const plain = trimmed.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  return { ok: false, error: plain.slice(0, 180) || 'Respons server bukan JSON.' };
 }
 
 function renderRoomList(rooms) {
@@ -413,7 +427,7 @@ async function addSongFromInput() {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
       body: new URLSearchParams({ q }),
-    }).then((r) => r.json());
+    }).then(readJson);
     if (!parsed.ok) throw new Error(parsed.error || 'Gagal membaca tautan.');
     input.value = '';
     const data = await api('api/room.php', {
