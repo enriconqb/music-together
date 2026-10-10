@@ -577,14 +577,18 @@ function toggleMute() {
 }
 
 function openRoleIfNeeded(code) {
+  const modal = document.getElementById('roleModal');
+  if (!modal) return;
   let saved = '';
   try { saved = sessionStorage.getItem('synctunes_role_' + code) || ''; } catch (e) {}
   if (saved === 'speaker' || saved === 'requester') {
     state.muted = saved === 'requester';
     applyLocalVolume();
+    modal.style.display = 'none';
     return;
   }
-  document.getElementById('roleModal').classList.remove('hidden');
+  modal.classList.remove('hidden');
+  modal.style.display = 'flex';
 }
 
 function chooseRole(role) {
@@ -592,7 +596,11 @@ function chooseRole(role) {
   if (state.roomId) {
     try { sessionStorage.setItem('synctunes_role_' + state.roomId, role); } catch (e) {}
   }
-  document.getElementById('roleModal').classList.add('hidden');
+  const modal = document.getElementById('roleModal');
+  if (modal) {
+    modal.classList.add('hidden');
+    modal.style.display = 'none';
+  }
   applyLocalVolume();
 }
 
