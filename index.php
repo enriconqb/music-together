@@ -258,7 +258,7 @@
         <!-- Controls -->
         <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] mb-3 sm:mb-4 transition-colors">
           <div class="flex items-center justify-center gap-3 sm:gap-5 flex-wrap">
-            <button type="button" onclick="toggleShuffle()" id="shuffleBtn" class="p-2 dark-text-muted text-gray-400 hover:text-white transition-colors active:scale-90" title="Shuffle">
+            <button type="button" onclick="shuffleQueue()" id="shuffleBtn" class="p-2 dark-text-muted text-gray-400 hover:text-white transition-colors active:scale-90" title="Acak antrian">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h4l4 8 4-8h4M4 20h4l4-8m0 0l4 8h4"/></svg>
             </button>
             <button type="button" onclick="playPrevious()" class="p-2 dark-text text-gray-300 hover:text-white transition-colors active:scale-90" title="Previous">

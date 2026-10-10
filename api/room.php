@@ -41,6 +41,9 @@ try {
         case 'play':
             echo json_encode(mutate($dir, $input, 'play'));
             break;
+        case 'progress':
+            echo json_encode(saveProgress($dir, $input));
+            break;
         case 'clear':
             echo json_encode(mutate($dir, $input, 'clear'));
             break;
@@ -95,12 +98,20 @@ function withRoom(string $path, callable $fn, bool $create = false): array
         throw $e;
     }
     pruneStaleUsers($data);
+    $now = (int)(microtime(true) * 1000);
     if (count($data['users'] ?? []) === 0 && !empty($data['code'])) {
-        flock($fh, LOCK_UN);
-        fclose($fh);
-        @unlink($path);
-        $data['_deleted'] = true;
-        return $data;
+        if (empty($data['emptySince'])) {
+            $data['emptySince'] = $now;
+        }
+        if (($now - (int)$data['emptySince']) >= 60000) {
+            flock($fh, LOCK_UN);
+            fclose($fh);
+            @unlink($path);
+            $data['_deleted'] = true;
+            return $data;
+        }
+    } else {
+        unset($data['emptySince']);
     }
     rewind($fh);
     ftruncate($fh, 0);
@@ -140,6 +151,8 @@ function publicRoom(array $room, bool $includeChat = true): array
         'isPlaying' => !empty($room['isPlaying']),
         'revision' => (int)($room['revision'] ?? 0),
         'playNonce' => (int)($room['playNonce'] ?? 0),
+        'position' => (float)($room['position'] ?? 0),
+        'positionAt' => (int)($room['positionAt'] ?? 0),
         'online' => $users,
     ];
     if ($includeChat) {
@@ -301,6 +314,8 @@ function mutate(string $dir, array $input, string $op): array
                     $room['currentIndex'] = 0;
                     $room['isPlaying'] = true;
                     $room['playNonce'] = (int)($room['playNonce'] ?? 0) + 1;
+                    $room['position'] = 0;
+                    $room['positionAt'] = (int)(microtime(true) * 1000);
                 }
             } elseif ($op === 'remove') {
                 $id = (string)($input['songId'] ?? '');
@@ -340,6 +355,8 @@ function mutate(string $dir, array $input, string $op): array
                     $room['currentIndex'] = $index;
                     $room['isPlaying'] = true;
                     $room['playNonce'] = (int)($room['playNonce'] ?? 0) + 1;
+                    $room['position'] = 0;
+                    $room['positionAt'] = (int)(microtime(true) * 1000);
                 }
             } elseif ($op === 'clear') {
                 $room['queue'] = [];
@@ -375,6 +392,27 @@ function mutate(string $dir, array $input, string $op): array
         unset($pub['chat']);
     }
     return ['ok' => true, 'room' => $pub];
+}
+
+function saveProgress(string $dir, array $input): array
+{
+    $code = strtoupper(trim((string)($input['code'] ?? '')));
+    $path = roomPath($dir, $code);
+    if (!file_exists($path)) {
+        http_response_code(404);
+        return ['ok' => false, 'error' => 'Room tidak ditemukan.'];
+    }
+    $room = withRoom($path, function (array $room) use ($input) {
+        touchUser($room, $input);
+        $room['position'] = max(0, (float)($input['position'] ?? 0));
+        $room['positionAt'] = (int)(microtime(true) * 1000);
+        $room['isPlaying'] = !empty($input['isPlaying']);
+        return $room;
+    });
+    if (!empty($room['_deleted'])) {
+        return ['ok' => true, 'deleted' => true];
+    }
+    return ['ok' => true];
 }
 
 function normalizeSong(array $song, string $addedBy): array

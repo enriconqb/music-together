@@ -18,6 +18,8 @@ const state = {
   applyingRemote: false,
   loadedKey: '',
   playerMode: 'audio',
+  pendingSeek: null,
+  ignoreProgressUntil: 0,
 };
 
 function loadProfile() {
@@ -54,6 +56,7 @@ function saveProfileFromGate() {
   state.userName = name;
   localStorage.setItem('synctunes_profile', JSON.stringify({ userId: state.userId, name }));
   applyProfileUI();
+  resumeRoom();
 }
 
 function openProfileEditor() {
@@ -161,6 +164,7 @@ function onPlayerStateChange(e) {
     state.isPlaying = false;
     updatePlayPauseUI(false);
     stopProgressTracker();
+    reportProgress(false);
   } else if (e.data === YT.PlayerState.ENDED) {
     state.isPlaying = false;
     stopProgressTracker();
@@ -303,6 +307,7 @@ function enterRoom(room) {
   document.getElementById('onlineIndicator').classList.remove('hidden');
   document.getElementById('onlineIndicator').classList.add('flex');
   history.replaceState(null, '', '#' + room.code);
+  try { sessionStorage.setItem('synctunes_active_room', room.code); } catch (e) {}
   applyRoom(room, true);
   if (state.pollTimer) clearInterval(state.pollTimer);
   state.pollTimer = setInterval(pollRoom, 1500);
@@ -323,6 +328,7 @@ async function leaveRoom(silent) {
   document.getElementById('leaveBtn').classList.add('hidden');
   document.getElementById('roomIdDisplay').textContent = 'No room';
   history.replaceState(null, '', location.pathname);
+  try { sessionStorage.removeItem('synctunes_active_room'); } catch (e) {}
   if (state.ytPlayer && state.ytReady) {
     try { state.ytPlayer.stopVideo(); } catch (e) {}
   }
@@ -376,6 +382,7 @@ function applyRoom(room, initial) {
     document.getElementById('spotifyOverlay').classList.add('hidden');
     updateNowPlayingUI(null);
   } else if (indexChanged || initial) {
+    if (initial) state.pendingSeek = resumeSeconds(room);
     playSongAtIndex(state.currentIndex, false);
   }
   state.applyingRemote = false;
@@ -428,7 +435,10 @@ function playSongAtIndex(index, broadcast) {
     document.getElementById('noSongOverlay').classList.add('hidden');
     if (state.ytPlayer && state.ytReady) {
       if (state.loadedKey !== key) {
-        state.ytPlayer.loadVideoById(song.videoId);
+        const start = typeof state.pendingSeek === 'number' ? state.pendingSeek : 0;
+        state.pendingSeek = null;
+        if (start > 1) state.ignoreProgressUntil = Date.now() + 2500;
+        state.ytPlayer.loadVideoById({ videoId: song.videoId, startSeconds: start });
         state.ytPlayer.setVolume(state.volume);
         state.loadedKey = key;
       }
@@ -502,6 +512,7 @@ function playPrevious() {
   if (!state.queue.length) return;
   if (state.ytPlayer && state.ytReady && state.ytPlayer.getCurrentTime() > 3) {
     state.ytPlayer.seekTo(0);
+    reportProgress(false);
     return;
   }
   let prev = state.currentIndex - 1;
@@ -601,8 +612,40 @@ function startProgressTracker() {
     document.getElementById('currentTime').textContent = formatTime(cur);
     document.getElementById('totalTime').textContent = formatTime(tot);
     if (tot > 0) document.getElementById('progressBar').style.width = ((cur / tot) * 100) + '%';
+    if (!state.lastProgressSent || Date.now() - state.lastProgressSent >= 5000) reportProgress(false);
   }, 500);
 }
+function resumeSeconds(room) {
+  let pos = Number(room.position) || 0;
+  if (room.isPlaying && room.positionAt) {
+    pos += (Date.now() - Number(room.positionAt)) / 1000;
+  }
+  if (!Number.isFinite(pos) || pos < 0) return 0;
+  return pos;
+}
+
+function reportProgress(useBeacon) {
+  if (!state.roomId || Date.now() < state.ignoreProgressUntil) return;
+  const song = state.queue[state.currentIndex];
+  if (!song || song.source !== 'youtube' || !state.ytPlayer || !state.ytReady) return;
+  let position = 0;
+  try { position = state.ytPlayer.getCurrentTime() || 0; } catch (e) { return; }
+  state.lastProgressSent = Date.now();
+  const body = {
+    action: 'progress',
+    code: state.roomId,
+    userId: state.userId,
+    userName: state.userName,
+    position,
+    isPlaying: !!state.isPlaying,
+  };
+  if (useBeacon && navigator.sendBeacon) {
+    navigator.sendBeacon('api/room.php', new Blob([JSON.stringify(body)], { type: 'application/json' }));
+    return;
+  }
+  api('api/room.php', body).catch(() => {});
+}
+
 function stopProgressTracker() {
   if (state.progressInterval) clearInterval(state.progressInterval);
   state.progressInterval = null;
@@ -703,8 +746,37 @@ document.getElementById('progressBarContainer')?.addEventListener('click', funct
   const r = this.getBoundingClientRect();
   const pct = (e.clientX - r.left) / r.width;
   const d = state.ytPlayer.getDuration() || 0;
-  if (d > 0) state.ytPlayer.seekTo(pct * d);
+    if (d > 0) state.ytPlayer.seekTo(pct * d);
+    reportProgress(false);
 });
+
+function roomCodeFromSession() {
+  const hash = window.location.hash.replace('#', '').toUpperCase();
+  if (/^[A-Z0-9]{6}$/.test(hash)) return hash;
+  try {
+    const stored = (sessionStorage.getItem('synctunes_active_room') || '').toUpperCase();
+    if (/^[A-Z0-9]{6}$/.test(stored)) return stored;
+  } catch (e) {}
+  return '';
+}
+
+async function resumeRoom() {
+  const code = roomCodeFromSession();
+  if (!code || !hasProfile()) return;
+  try {
+    const data = await api('api/room.php', {
+      action: 'state',
+      code,
+      userId: state.userId,
+      userName: state.userName,
+      sinceChat: 0,
+    });
+    if (data.deleted || !data.room) return;
+    enterRoom(data.room);
+  } catch (err) {
+    try { sessionStorage.removeItem('synctunes_active_room'); } catch (e) {}
+  }
+}
 
 window.addEventListener('load', () => {
   loadProfile();
@@ -712,22 +784,11 @@ window.addEventListener('load', () => {
   setPlayerMode(state.playerMode);
   setupRoomList();
   switchMobileTab('player');
-  const hash = window.location.hash.replace('#', '').toUpperCase();
-  if (/^[A-Z0-9]{6}$/.test(hash)) {
-    document.getElementById('joinRoomCode').value = hash;
-    showToast('Kode room dari URL terdeteksi', 'info');
-  }
+  resumeRoom();
 });
 
 window.addEventListener('pagehide', () => {
-  if (!state.roomId) return;
-  const body = JSON.stringify({
-    action: 'leave',
-    code: state.roomId,
-    userId: state.userId,
-    userName: state.userName,
-  });
-  navigator.sendBeacon('api/room.php', new Blob([body], { type: 'application/json' }));
+  reportProgress(true);
 });
 
 Object.assign(window, {
