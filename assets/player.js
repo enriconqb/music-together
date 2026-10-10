@@ -183,6 +183,12 @@ function onPlayerStateChange(e) {
       return;
     }
     state.wantPlaying = null;
+    if (state.seekAfterReady) {
+      const at = state.seekAfterReady;
+      state.seekAfterReady = null;
+      try { state.ytPlayer.seekTo(at, true); } catch (e) {}
+    }
+    applyLocalVolume();
     state.isPlaying = true;
     updatePlayPauseUI(true);
     startProgressTracker();
@@ -483,11 +489,14 @@ function playSongAtIndex(index, broadcast) {
     document.getElementById('noSongOverlay').classList.add('hidden');
     if (state.ytPlayer && state.ytReady) {
       if (state.loadedKey !== key) {
-        const start = typeof state.pendingSeek === 'number' ? state.pendingSeek : 0;
+        const live = !!song.live;
+        const start = !live && typeof state.pendingSeek === 'number' ? state.pendingSeek : 0;
         state.pendingSeek = null;
-        if (start > 1) state.ignoreProgressUntil = Date.now() + 2500;
-        state.ytPlayer.loadVideoById({ videoId: song.videoId, startSeconds: start });
-        state.ytPlayer.setVolume(state.volume);
+        state.seekAfterReady = !live && start > 1 ? start : null;
+        if (state.seekAfterReady) state.ignoreProgressUntil = Date.now() + 2500;
+        if (live) state.ytPlayer.loadVideoById(song.videoId);
+        else state.ytPlayer.loadVideoById({ videoId: song.videoId, startSeconds: start });
+        applyLocalVolume();
         state.loadedKey = key;
       }
     }
@@ -579,7 +588,15 @@ function syncPlayback(isPlaying) {
 }
 
 function applyLocalVolume() {
-  if (state.ytPlayer && state.ytReady) state.ytPlayer.setVolume(state.muted ? 0 : state.volume);
+  if (state.ytPlayer && state.ytReady) {
+    if (state.muted) {
+      try { state.ytPlayer.mute(); } catch (e) {}
+      state.ytPlayer.setVolume(0);
+    } else {
+      try { state.ytPlayer.unMute(); } catch (e) {}
+      state.ytPlayer.setVolume(state.volume);
+    }
+  }
   const btn = document.getElementById('muteBtn');
   if (!btn) return;
   document.getElementById('muteLabel').textContent = state.muted ? 'Muted' : 'Mute';

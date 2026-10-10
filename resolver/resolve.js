@@ -49,7 +49,7 @@ function formatDuration(seconds) {
 function videoIdFromEntry(entry) {
   if (entry?.id && /^[\w-]{11}$/.test(String(entry.id))) return String(entry.id);
   const raw = entry?.url || entry?.webpage_url || '';
-  const match = String(raw).match(/(?:v=|youtu\.be\/|shorts\/)([\w-]{11})/);
+  const match = String(raw).match(/(?:v=|youtu\.be\/|shorts\/|live\/)([\w-]{11})/);
   return match ? match[1] : null;
 }
 
@@ -61,6 +61,7 @@ function mapEntry(entry) {
     title: entry.title || 'YouTube Video',
     duration: formatDuration(entry.duration),
     artist: entry.uploader || entry.channel || 'YouTube',
+    live: entry.is_live === true || entry.live_status === 'is_live',
   };
 }
 
@@ -83,6 +84,7 @@ async function resolve(query) {
     const info = await ytDlpJson(trimmed, { ...YTDLP_FLAGS, noPlaylist: true, simulate: true });
     const mapped = mapEntry(info);
     if (!mapped) throw new Error('Video YouTube tidak valid.');
+    if (/\/live\//i.test(trimmed)) mapped.live = true;
     return { type: 'video', title: mapped.title, entries: [mapped] };
   }
 

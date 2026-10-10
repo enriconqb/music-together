@@ -91,6 +91,7 @@ function resolveYouTubeFallback(string $query): array
         'title' => $meta['title'] ?? 'YouTube Video',
         'artist' => $meta['author_name'] ?? 'YouTube',
         'duration' => 0,
+        'live' => (bool)preg_match('#/live/#', $query),
     ]], 'video', (string)($meta['title'] ?? ''));
 }
 
@@ -142,6 +143,7 @@ function songsResponse(array $entries, string $type, string $title): array
             'title' => $entry['title'] ?? 'YouTube Video',
             'artist' => $entry['artist'] ?? 'YouTube',
             'duration' => (int)($entry['duration'] ?? 0),
+            'live' => !empty($entry['live']),
         ];
     }
     if (!$songs) {
@@ -152,7 +154,7 @@ function songsResponse(array $entries, string $type, string $title): array
 
 function youtubeVideoId(string $query): ?string
 {
-    if (preg_match('#(?:v=|youtu\.be/|shorts/|embed/)([\w-]{11})#', $query, $match)) {
+    if (preg_match('#(?:v=|youtu\.be/|shorts/|embed/|live/)([\w-]{11})#', $query, $match)) {
         return $match[1];
     }
     if (preg_match('#^([\w-]{11})$#', $query, $match)) {

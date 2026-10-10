@@ -454,6 +454,7 @@ function normalizeSong(array $song, string $addedBy): array
     ];
     if ($source === 'youtube') {
         $item['videoId'] = substr((string)($song['videoId'] ?? ''), 0, 16);
+        $item['live'] = !empty($song['live']);
     } else {
         $item['spotifyType'] = substr((string)($song['spotifyType'] ?? 'track'), 0, 16);
         $item['spotifyId'] = substr((string)($song['spotifyId'] ?? ''), 0, 32);
