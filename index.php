@@ -374,6 +374,10 @@
             </h3>
             <span id="queueCount" class="text-xs dark-text-muted text-gray-500">0 songs</span>
           </div>
+          <div class="px-3 pt-2">
+            <input id="queueSearch" type="text" placeholder="Cari judul..." maxlength="80" oninput="updateQueueUI()"
+              class="dark-input input-focus w-full px-3 py-1.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-lg text-xs placeholder-gray-500">
+          </div>
           <div id="queueList" class="queue-scroll flex-1 overflow-y-auto p-2 space-y-1 min-h-0"></div>
           <div class="p-2 border-t dark-border border-[#2a2a3e] flex gap-2">
             <button type="button" onclick="clearQueue()" class="flex-1 py-2 text-xs dark-text-muted text-gray-400 hover:text-red-400 dark-bg-primary bg-[#0f0f1a] rounded-lg transition-colors">Clear All</button>
@@ -411,6 +415,6 @@
   </div>
 </main>
 
-<script src="assets/player.js?v=12"></script>
+<script src="assets/player.js?v=13"></script>
 </body>
 </html>

@@ -745,7 +745,15 @@ function updateQueueUI() {
     return;
   }
   countEl.textContent = state.queue.length + ' lagu';
-  container.innerHTML = state.queue.map((song, i) => {
+  const query = (document.getElementById('queueSearch')?.value || '').trim().toLowerCase();
+  const visible = state.queue
+    .map((song, i) => ({ song, i }))
+    .filter(({ song }) => !query || String(song.title || '').toLowerCase().includes(query));
+  if (!visible.length) {
+    container.innerHTML = '<div class="text-center py-8 dark-text-muted text-gray-600 text-sm">Tidak ada judul yang cocok</div>';
+    return;
+  }
+  container.innerHTML = visible.map(({ song, i }) => {
     const isActive = i === state.currentIndex;
     const icon = song.source === 'youtube' ? '▶' : '♫';
     return `<div class="flex items-center gap-2 p-2 rounded-lg ${isActive ? 'bg-violet-600/20 border border-violet-500/30' : 'dark-hover hover:bg-[#252540]'} group" draggable="true" data-song-id="${song.id}">
