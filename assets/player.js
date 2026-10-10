@@ -184,13 +184,11 @@ function onPlayerStateChange(e) {
     state.isPlaying = true;
     updatePlayPauseUI(true);
     startProgressTracker();
-    if (!state.remoteSync) reportProgress(false);
     state.remoteSync = false;
   } else if (e.data === YT.PlayerState.PAUSED) {
     state.isPlaying = false;
     updatePlayPauseUI(false);
     stopProgressTracker();
-    if (!state.remoteSync) reportProgress(false);
     state.remoteSync = false;
   } else if (e.data === YT.PlayerState.ENDED) {
     state.isPlaying = false;
@@ -535,8 +533,20 @@ function togglePlayPause() {
   }
   if (!state.ytPlayer || !state.ytReady) return;
   state.wantPlaying = null;
-  if (state.isPlaying) state.ytPlayer.pauseVideo();
-  else state.ytPlayer.playVideo();
+  const next = !state.isPlaying;
+  state.remoteSync = true;
+  if (next) state.ytPlayer.playVideo();
+  else state.ytPlayer.pauseVideo();
+  let position = 0;
+  try { position = state.ytPlayer.getCurrentTime() || 0; } catch (e) {}
+  api('api/room.php', {
+    action: 'transport',
+    code: state.roomId,
+    userId: state.userId,
+    userName: state.userName,
+    isPlaying: next,
+    position,
+  }).catch((err) => showToast(err.message, 'error'));
 }
 
 function syncPlayback(isPlaying) {
@@ -751,7 +761,6 @@ function reportProgress(useBeacon) {
     userId: state.userId,
     userName: state.userName,
     position,
-    isPlaying: !!state.isPlaying,
   };
   if (useBeacon && navigator.sendBeacon) {
     navigator.sendBeacon('api/room.php', new Blob([JSON.stringify(body)], { type: 'application/json' }));

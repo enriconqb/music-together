@@ -46,6 +46,9 @@ try {
         case 'progress':
             echo json_encode(saveProgress($dir, $input));
             break;
+        case 'transport':
+            echo json_encode(saveTransport($dir, $input));
+            break;
         case 'clear':
             echo json_encode(mutate($dir, $input, 'clear'));
             break;
@@ -408,13 +411,33 @@ function saveProgress(string $dir, array $input): array
         touchUser($room, $input);
         $room['position'] = max(0, (float)($input['position'] ?? 0));
         $room['positionAt'] = (int)(microtime(true) * 1000);
-        $room['isPlaying'] = !empty($input['isPlaying']);
         return $room;
     });
     if (!empty($room['_deleted'])) {
         return ['ok' => true, 'deleted' => true];
     }
     return ['ok' => true];
+}
+
+function saveTransport(string $dir, array $input): array
+{
+    $code = strtoupper(trim((string)($input['code'] ?? '')));
+    $path = roomPath($dir, $code);
+    if (!file_exists($path)) {
+        http_response_code(404);
+        return ['ok' => false, 'error' => 'Room tidak ditemukan.'];
+    }
+    $room = withRoom($path, function (array $room) use ($input) {
+        touchUser($room, $input);
+        $room['isPlaying'] = !empty($input['isPlaying']);
+        $room['position'] = max(0, (float)($input['position'] ?? 0));
+        $room['positionAt'] = (int)(microtime(true) * 1000);
+        return $room;
+    });
+    if (!empty($room['_deleted'])) {
+        return ['ok' => true, 'deleted' => true];
+    }
+    return ['ok' => true, 'room' => publicRoom($room, false)];
 }
 
 function normalizeSong(array $song, string $addedBy): array
