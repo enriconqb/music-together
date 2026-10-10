@@ -355,13 +355,24 @@ function mutate(string $dir, array $input, string $op): array
                     }
                     $next[] = $song;
                 }
+                $removedCurrent = $removedIndex !== null && $removedIndex === $index;
                 if ($removedIndex !== null && $removedIndex < $index) {
                     $index--;
-                } elseif ($removedIndex === $index) {
+                } elseif ($removedCurrent) {
                     $index = count($next) === 0 ? -1 : min($index, count($next) - 1);
                 }
                 $room['queue'] = $next;
                 $room['currentIndex'] = $index;
+                if ($removedCurrent && count($next) === 0) {
+                    $room['isPlaying'] = false;
+                    $room['position'] = 0;
+                    $room['playNonce'] = (int)($room['playNonce'] ?? 0) + 1;
+                } elseif ($removedCurrent) {
+                    $room['isPlaying'] = true;
+                    $room['position'] = 0;
+                    $room['positionAt'] = (int)(microtime(true) * 1000);
+                    $room['playNonce'] = (int)($room['playNonce'] ?? 0) + 1;
+                }
                 appendLog($room, (string)($input['userName'] ?? 'Guest'), 'menghapus lagu dari antrian');
             } elseif ($op === 'reorder') {
                 $ids = array_values(array_filter(array_map('strval', $input['order'] ?? [])));
@@ -392,6 +403,8 @@ function mutate(string $dir, array $input, string $op): array
                 $room['queue'] = [];
                 $room['currentIndex'] = -1;
                 $room['isPlaying'] = false;
+                $room['position'] = 0;
+                $room['playNonce'] = (int)($room['playNonce'] ?? 0) + 1;
                 appendLog($room, (string)($input['userName'] ?? 'Guest'), 'mengosongkan antrian');
             } elseif ($op === 'chat') {
                 $text = substr(trim((string)($input['text'] ?? '')), 0, 200);

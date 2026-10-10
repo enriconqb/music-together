@@ -440,9 +440,7 @@ function applyRoom(room, initial) {
     }
   });
   if (state.currentIndex < 0 || !state.queue[state.currentIndex]) {
-    document.getElementById('noSongOverlay').classList.remove('hidden');
-    document.getElementById('spotifyOverlay').classList.add('hidden');
-    updateNowPlayingUI(null);
+    stopPlaybackEmpty();
   } else if (indexChanged || initial) {
     state.wantPlaying = !!room.isPlaying;
     if (initial) state.pendingSeek = resumeSeconds(room);
@@ -481,6 +479,24 @@ async function addSongFromInput() {
   } finally {
     input.disabled = false;
   }
+}
+
+function stopPlaybackEmpty() {
+  state.isPlaying = false;
+  state.wantPlaying = false;
+  state.loadedKey = '';
+  state.pendingSeek = null;
+  state.seekAfterReady = null;
+  if (state.ytPlayer && state.ytReady) {
+    try { state.ytPlayer.stopVideo(); } catch (e) {}
+  }
+  const embed = document.getElementById('spotifyEmbedContainer');
+  if (embed) embed.innerHTML = '';
+  document.getElementById('noSongOverlay').classList.remove('hidden');
+  document.getElementById('spotifyOverlay').classList.add('hidden');
+  updatePlayPauseUI(false);
+  stopProgressTracker();
+  updateNowPlayingUI(null);
 }
 
 function songKey(song) {
@@ -865,9 +881,11 @@ function appendLogEntry(entry) {
   const empty = list.querySelector('.text-center');
   if (empty) empty.remove();
   const time = new Date(entry.time).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-  const row = document.createElement('p');
-  row.className = 'text-xs text-gray-300 leading-relaxed';
-  row.textContent = time + ' · ' + entry.user + ' ' + entry.text;
+  const row = document.createElement('div');
+  row.className = 'flex flex-wrap items-center gap-1.5 text-xs text-gray-300 leading-relaxed';
+  row.innerHTML = '<span class="shrink-0 px-1.5 py-0.5 rounded-md bg-[#0f0f1a] text-gray-400">' + escapeHtml(time) + '</span>'
+    + '<span class="shrink-0 px-1.5 py-0.5 rounded-md bg-violet-600/25 text-violet-300">' + escapeHtml(entry.user) + '</span>'
+    + '<span class="min-w-0 break-words">' + escapeHtml(entry.text) + '</span>';
   list.appendChild(row);
   list.scrollTop = list.scrollHeight;
 }
