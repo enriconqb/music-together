@@ -37,6 +37,9 @@ try {
         case 'remove':
             echo json_encode(mutate($dir, $input, 'remove'));
             break;
+        case 'ban':
+            echo json_encode(mutate($dir, $input, 'ban'));
+            break;
         case 'reorder':
             echo json_encode(mutate($dir, $input, 'reorder'));
             break;
@@ -149,6 +152,7 @@ function publicRoom(array $room, bool $includeChat = true): array
     $out = [
         'code' => $room['code'],
         'createdBy' => $room['createdBy'],
+        'hostUserId' => (string)($room['hostUserId'] ?? ''),
         'createdAt' => $room['createdAt'],
         'isPrivate' => !empty($room['passwordHash']),
         'queue' => array_values($room['queue'] ?? []),
@@ -191,6 +195,9 @@ function touchUser(array &$room, array $input): void
         'name' => $name,
         'lastSeen' => (int)(microtime(true) * 1000),
     ];
+    if (($room['hostUserId'] ?? '') === '' && strcasecmp($name, (string)($room['createdBy'] ?? '')) === 0) {
+        $room['hostUserId'] = $id;
+    }
 }
 
 function listRooms(string $dir): array
@@ -239,6 +246,7 @@ function createRoom(string $dir, array $input): array
     $room = [
         'code' => $code,
         'createdBy' => $name,
+        'hostUserId' => substr(trim((string)($input['userId'] ?? '')), 0, 40),
         'createdAt' => (int)(microtime(true) * 1000),
         'passwordHash' => $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : null,
         'queue' => [],
@@ -247,6 +255,7 @@ function createRoom(string $dir, array $input): array
         'revision' => 1,
         'chat' => [],
         'log' => [],
+        'banned' => [],
         'users' => [],
     ];
     $input['userName'] = $name;
@@ -326,14 +335,21 @@ function mutate(string $dir, array $input, string $op): array
             $queue = array_values($room['queue'] ?? []);
 
             if ($op === 'add') {
+                $banned = array_flip($room['banned'] ?? []);
+                $added = [];
                 foreach ($input['songs'] ?? [] as $song) {
                     if (!is_array($song)) {
                         continue;
                     }
-                    $queue[] = normalizeSong($song, (string)($input['userName'] ?? 'Guest'));
+                    $item = normalizeSong($song, (string)($input['userName'] ?? 'Guest'));
+                    if (isset($banned[songLinkKey($item)])) {
+                        throw new RuntimeException('Tautan ini diblokir di room ini.');
+                    }
+                    $queue[] = $item;
+                    $added[] = $item;
                 }
                 $room['queue'] = $queue;
-                $titles = array_map(fn($s) => (string)($s['title'] ?? 'lagu'), array_slice($queue, -count($input['songs'] ?? [])));
+                $titles = array_map(fn($s) => (string)($s['title'] ?? 'lagu'), $added);
                 $label = count($titles) > 1 ? 'menambah ' . count($titles) . ' lagu' : 'menambah ' . ($titles[0] ?? 'lagu');
                 appendLog($room, (string)($input['userName'] ?? 'Guest'), $label);
                 if ((int)$room['currentIndex'] < 0 && count($queue) > 0) {
@@ -343,6 +359,60 @@ function mutate(string $dir, array $input, string $op): array
                     $room['position'] = 0;
                     $room['positionAt'] = (int)(microtime(true) * 1000);
                 }
+            } elseif ($op === 'ban') {
+                $actor = substr((string)($input['userId'] ?? ''), 0, 40);
+                if ($actor === '' || $actor !== (string)($room['hostUserId'] ?? '')) {
+                    throw new RuntimeException('Hanya host yang bisa mem-ban tautan.');
+                }
+                $id = (string)($input['songId'] ?? '');
+                $target = null;
+                foreach ($queue as $song) {
+                    if (($song['id'] ?? '') === $id) {
+                        $target = $song;
+                        break;
+                    }
+                }
+                if (!$target) {
+                    throw new RuntimeException('Lagu tidak ada di antrian.');
+                }
+                $key = songLinkKey($target);
+                $banned = $room['banned'] ?? [];
+                if (!in_array($key, $banned, true)) {
+                    $banned[] = $key;
+                }
+                $room['banned'] = array_slice($banned, -200);
+                $index = (int)$room['currentIndex'];
+                $currentKey = isset($queue[$index]) ? songLinkKey($queue[$index]) : '';
+                $removedCurrent = $currentKey === $key;
+                $before = 0;
+                $next = [];
+                foreach ($queue as $i => $song) {
+                    if (songLinkKey($song) === $key) {
+                        if ($i < $index) {
+                            $before++;
+                        }
+                        continue;
+                    }
+                    $next[] = $song;
+                }
+                if ($removedCurrent) {
+                    $index = count($next) === 0 ? -1 : min(max(0, $index - $before), count($next) - 1);
+                } else {
+                    $index = max(-1, $index - $before);
+                }
+                $room['queue'] = $next;
+                $room['currentIndex'] = $index;
+                if ($removedCurrent && count($next) === 0) {
+                    $room['isPlaying'] = false;
+                    $room['position'] = 0;
+                    $room['playNonce'] = (int)($room['playNonce'] ?? 0) + 1;
+                } elseif ($removedCurrent) {
+                    $room['isPlaying'] = true;
+                    $room['position'] = 0;
+                    $room['positionAt'] = (int)(microtime(true) * 1000);
+                    $room['playNonce'] = (int)($room['playNonce'] ?? 0) + 1;
+                }
+                appendLog($room, (string)($input['userName'] ?? 'Guest'), 'mem-ban tautan ' . (string)($target['title'] ?? ''));
             } elseif ($op === 'remove') {
                 $id = (string)($input['songId'] ?? '');
                 $index = (int)$room['currentIndex'];
@@ -479,6 +549,14 @@ function saveTransport(string $dir, array $input): array
         return ['ok' => true, 'deleted' => true];
     }
     return ['ok' => true, 'room' => publicRoom($room, false)];
+}
+
+function songLinkKey(array $song): string
+{
+    if (($song['source'] ?? '') === 'spotify') {
+        return 'sp:' . ($song['spotifyType'] ?? 'track') . ':' . ($song['spotifyId'] ?? '');
+    }
+    return 'yt:' . ($song['videoId'] ?? '');
 }
 
 function normalizeSong(array $song, string $addedBy): array

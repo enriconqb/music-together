@@ -422,6 +422,7 @@ function applyRoom(room, initial) {
   const indexChanged = room.currentIndex !== state.currentIndex || room.playNonce !== state.playNonce;
   state.queue = room.queue || [];
   state.currentIndex = room.currentIndex;
+  state.hostUserId = room.hostUserId || '';
   state.revision = room.revision;
   state.playNonce = room.playNonce || 0;
   updateQueueUI();
@@ -708,6 +709,11 @@ function onSongEnd() {
   else skipSong();
 }
 
+function banFromQueue(songId) {
+  api('api/room.php', { action: 'ban', code: state.roomId, userId: state.userId, userName: state.userName, songId })
+    .then((data) => applyRoom({ ...data.room, chat: [] }, false))
+    .catch((err) => showToast(err.message, 'error'));
+}
 function removeFromQueue(songId) {
   api('api/room.php', { action: 'remove', code: state.roomId, userId: state.userId, userName: state.userName, songId })
     .then((data) => applyRoom({ ...data.room, chat: [] }, false))
@@ -756,6 +762,7 @@ function updateQueueUI() {
       </div>
       <div class="flex gap-0.5 opacity-0 group-hover:opacity-100">
         <button type="button" onclick="playNow('${song.id}')" class="p-1 text-gray-400 hover:text-violet-400" title="Putar">▶</button>
+        ${state.userId && state.userId === state.hostUserId ? `<button type="button" onclick="banFromQueue('${song.id}')" class="px-1.5 py-0.5 text-[10px] font-semibold text-red-300 hover:text-white" title="Ban">Ban</button>` : ''}
         <button type="button" onclick="removeFromQueue('${song.id}')" class="p-1 text-gray-400 hover:text-red-400" title="Hapus">✕</button>
       </div>
     </div>`;
@@ -997,7 +1004,7 @@ window.addEventListener('pagehide', () => {
 Object.assign(window, {
   createRoom, joinRoom, joinRoomFromList, leaveRoom,
   addSongFromInput, togglePlayPause, skipSong, playPrevious,
-  removeFromQueue, playNow, clearQueue, shuffleQueue,
+  removeFromQueue, banFromQueue, playNow, clearQueue, shuffleQueue,
   toggleShuffle, toggleRepeat, sendChatMessage, setVolume,
   toggleTheme, switchMobileTab, onYouTubeIframeAPIReady,
   saveProfileFromGate, openProfileEditor, closeProfileEditor, saveProfileEdit, setPlayerMode,

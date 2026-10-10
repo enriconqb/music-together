@@ -379,6 +379,6 @@
   </div>
 </main>
 
-<script src="assets/player.js?v=10"></script>
+<script src="assets/player.js?v=11"></script>
 </body>
 </html>
