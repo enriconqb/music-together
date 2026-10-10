@@ -11,9 +11,7 @@
   .queue-scroll::-webkit-scrollbar-track { background: transparent; }
   .queue-scroll::-webkit-scrollbar-thumb { background: #4a4a6a; border-radius: 3px; }
 
-  .video-container { position: relative; padding-bottom: 56.25%; height: 0; overflow: hidden; border-radius: 12px; background: #000; }
-  .video-container iframe, .video-container #yt-player { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-  body.audio-only .video-container { padding-bottom: 0; height: 240px; }
+  .video-container { position: relative; height: clamp(140px, 32vh, 280px); overflow: hidden; border-radius: 12px; background: #000; flex-shrink: 0; }
   body.audio-only .video-container iframe,
   body.audio-only .video-container #yt-player { position: fixed; left: -9999px; top: 0; width: 320px; height: 180px; }
   body.audio-only #audioCover { display: flex; }
@@ -32,18 +30,52 @@
 
   /* ===== MOBILE TAB LAYOUT (below lg) ===== */
   @media (max-width: 1023px) {
-    #playerScreen[data-mobile-tab="player"] #tabContentPlayer { display: block; }
+    #playerScreen[data-mobile-tab="player"] #tabContentPlayer { display: flex; }
     #playerScreen[data-mobile-tab="player"] #tabContentSidebar { display: none; }
 
     #playerScreen[data-mobile-tab="queue"] #tabContentPlayer { display: none; }
-    #playerScreen[data-mobile-tab="queue"] #tabContentSidebar { display: block; }
-    #playerScreen[data-mobile-tab="queue"] #tabContentQueue { display: block; }
+    #playerScreen[data-mobile-tab="queue"] #tabContentSidebar { display: flex; }
+    #playerScreen[data-mobile-tab="queue"] #tabContentQueue { display: flex; }
     #playerScreen[data-mobile-tab="queue"] #tabContentChat { display: none; }
 
     #playerScreen[data-mobile-tab="chat"] #tabContentPlayer { display: none; }
-    #playerScreen[data-mobile-tab="chat"] #tabContentSidebar { display: block; }
+    #playerScreen[data-mobile-tab="chat"] #tabContentSidebar { display: flex; }
     #playerScreen[data-mobile-tab="chat"] #tabContentQueue { display: none; }
-    #playerScreen[data-mobile-tab="chat"] #tabContentChat { display: block; }
+    #playerScreen[data-mobile-tab="chat"] #tabContentChat { display: flex; }
+  }
+
+  html, body { height: 100dvh; overflow: hidden; }
+  body { display: flex; flex-direction: column; }
+  main.app-main { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  #landingScreen:not(.hidden),
+  #playerScreen:not(.hidden) { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  #landingGrid { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+  #landingForms { flex-shrink: 0; }
+  @media (max-width: 1023px) {
+    #landingForms { max-height: 58%; overflow: auto; }
+  }
+  @media (min-width: 1024px) {
+    #landingGrid { display: grid; grid-template-columns: 1fr 400px; gap: 1.5rem; }
+    #landingForms { max-height: none; overflow: visible; }
+  }
+  #roomListCard { min-height: 0; display: flex; flex-direction: column; }
+  #roomList { flex: 1; min-height: 0; overflow-y: auto; }
+  #playerColumns { flex: 1; min-height: 0; }
+  #tabContentPlayer { min-height: 0; }
+  #tabContentSidebar { min-height: 0; }
+  #tabContentQueue, #tabContentChat { min-height: 0; }
+  @media (min-width: 1024px) {
+    #playerColumns { display: flex; gap: 1.5rem; }
+    #tabContentPlayer { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+    #tabContentSidebar { width: 24rem; flex-shrink: 0; display: flex; flex-direction: column; margin-top: 0; }
+    #tabContentQueue { flex: 1.15; display: flex; max-height: none; }
+    #tabContentChat { flex: 1; display: flex; max-height: none; }
+  }
+  @media (max-width: 1023px) {
+    #playerColumns { display: flex; flex-direction: column; min-height: 0; }
+    #tabContentPlayer { flex: 1; flex-direction: column; overflow: hidden; }
+    #tabContentSidebar { flex: 1; flex-direction: column; margin-top: 0; }
+    #tabContentQueue, #tabContentChat { flex: 1; max-height: none; }
   }
 
   /* ===== LIGHT MODE ===== */
@@ -59,10 +91,10 @@
   body.light .dark-hover:hover { background-color: #f3f4f6 !important; }
 </style>
 </head>
-<body class="bg-[#0f0f1a] text-gray-100 min-h-screen font-sans antialiased transition-colors duration-300">
+<body class="bg-[#0f0f1a] text-gray-100 h-dvh overflow-hidden font-sans antialiased transition-colors duration-300">
 
 <!-- ================= HEADER ================= -->
-<header class="dark-header sticky top-0 z-50 bg-[#0f0f1a]/95 backdrop-blur-md border-b dark-border border-[#2a2a3e] transition-colors duration-300">
+<header class="dark-header shrink-0 z-50 bg-[#0f0f1a]/95 backdrop-blur-md border-b dark-border border-[#2a2a3e] transition-colors duration-300">
   <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
     <div class="flex items-center justify-between h-14 sm:h-16">
       <div class="flex items-center gap-2">
@@ -93,7 +125,7 @@
   </div>
 </header>
 
-<main class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6 py-4 sm:py-6">
+<main class="app-main max-w-7xl mx-auto w-full px-3 sm:px-4 lg:px-6 py-3">
 
   <div id="profileGate" class="hidden fixed inset-0 z-[90] bg-black/70 items-center justify-center p-4">
     <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 w-full max-w-md border dark-border border-[#2a2a3e]">
@@ -134,7 +166,7 @@
 
   <!-- ================= LANDING SCREEN ================= -->
   <div id="landingScreen">
-    <div class="text-center mb-6 sm:mb-8 max-w-5xl mx-auto">
+    <div class="text-center mb-3 max-w-5xl mx-auto shrink-0">
       <div class="w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/20">
         <svg class="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
       </div>
@@ -143,9 +175,9 @@
     </div>
 
     <!-- DESKTOP: 2-col layout | MOBILE: stacked -->
-    <div class="max-w-5xl mx-auto lg:grid lg:grid-cols-[1fr_400px] lg:gap-6 lg:items-start">
+    <div id="landingGrid" class="max-w-5xl mx-auto w-full lg:grid lg:grid-cols-[1fr_400px] lg:gap-6 min-h-0">
       <!-- Left: forms -->
-      <div class="space-y-4">
+      <div id="landingForms" class="space-y-4">
         <!-- Create Room -->
         <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300">
           <h2 class="font-semibold mb-3 flex items-center gap-2">
@@ -193,8 +225,8 @@
       </div>
 
       <!-- Right: room list -->
-      <div class="mt-4 lg:mt-0">
-        <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300 lg:sticky lg:top-24">
+      <div class="mt-3 lg:mt-0 min-h-0 flex flex-col">
+        <div id="roomListCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300 flex-1 min-h-0">
           <div class="flex items-center justify-between mb-3">
             <h2 class="font-semibold flex items-center gap-2">
               <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
@@ -202,7 +234,7 @@
             </h2>
             <span id="roomListCount" class="text-xs dark-text-muted text-gray-500">0</span>
           </div>
-          <div id="roomList" class="space-y-2 max-h-[400px] overflow-y-auto queue-scroll pr-1">
+          <div id="roomList" class="space-y-2 overflow-y-auto queue-scroll pr-1 min-h-0">
             <p class="dark-text-muted text-gray-500 text-sm text-center py-6">Loading rooms...</p>
           </div>
           <div id="fbStatus" class="mt-3 pt-3 border-t dark-border border-[#2a2a3e] text-[10px] dark-text-muted text-gray-500"></div>
@@ -210,14 +242,14 @@
       </div>
     </div>
 
-    <p class="text-center text-xs dark-text-muted text-gray-600 mt-6">Powered by YouTube &amp; Spotify • Antrian tersinkron di server lokal</p>
+    <p class="text-center text-xs dark-text-muted text-gray-600 mt-3 shrink-0">Powered by YouTube &amp; Spotify • Antrian tersinkron di server lokal</p>
   </div>
 
   <!-- ================= PLAYER SCREEN ================= -->
   <div id="playerScreen" data-mobile-tab="player" class="hidden">
 
     <!-- Mobile tab bar -->
-    <div class="lg:hidden dark-bg-secondary bg-[#1a1a2e] rounded-xl p-1 mb-4 flex gap-1 border dark-border border-[#2a2a3e] transition-colors">
+    <div class="lg:hidden shrink-0 dark-bg-secondary bg-[#1a1a2e] rounded-xl p-1 mb-3 flex gap-1 border dark-border border-[#2a2a3e] transition-colors">
       <button type="button" onclick="switchMobileTab('player')" data-tab-btn="player"
         class="flex-1 py-2 rounded-lg text-xs font-medium transition-colors">▶ Player</button>
       <button type="button" onclick="switchMobileTab('queue')" data-tab-btn="queue"
@@ -226,9 +258,9 @@
         class="flex-1 py-2 rounded-lg text-xs font-medium transition-colors">💬 Chat</button>
     </div>
 
-    <div class="lg:flex lg:gap-6">
+    <div id="playerColumns" class="min-h-0">
       <!-- LEFT: Player -->
-      <div id="tabContentPlayer" class="lg:flex-1 lg:min-w-0">
+      <div id="tabContentPlayer" class="min-w-0 min-h-0">
         <!-- Video player -->
         <div class="video-container bg-black mb-3 sm:mb-4 relative">
           <div id="yt-player"></div>
@@ -332,9 +364,9 @@
       </div>
 
       <!-- RIGHT: sidebar (queue + chat) -->
-      <div id="tabContentSidebar" class="lg:w-96 lg:flex-shrink-0 mt-4 lg:mt-0">
+      <div id="tabContentSidebar" class="min-h-0">
         <!-- Queue -->
-        <div id="tabContentQueue" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col lg:max-h-[60vh] max-h-[60vh] transition-colors">
+        <div id="tabContentQueue" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col min-h-0 transition-colors">
           <div class="flex items-center justify-between p-3 sm:p-4 border-b dark-border border-[#2a2a3e]">
             <h3 class="font-semibold text-sm flex items-center gap-2">
               <svg class="w-4 h-4 text-fuchsia-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
@@ -342,7 +374,7 @@
             </h3>
             <span id="queueCount" class="text-xs dark-text-muted text-gray-500">0 songs</span>
           </div>
-          <div id="queueList" class="queue-scroll flex-1 overflow-y-auto p-2 space-y-1 min-h-[120px]"></div>
+          <div id="queueList" class="queue-scroll flex-1 overflow-y-auto p-2 space-y-1 min-h-0"></div>
           <div class="p-2 border-t dark-border border-[#2a2a3e] flex gap-2">
             <button type="button" onclick="clearQueue()" class="flex-1 py-2 text-xs dark-text-muted text-gray-400 hover:text-red-400 dark-bg-primary bg-[#0f0f1a] rounded-lg transition-colors">Clear All</button>
             <button type="button" onclick="shuffleQueue()" class="flex-1 py-2 text-xs dark-text-muted text-gray-400 hover:text-white dark-bg-primary bg-[#0f0f1a] rounded-lg transition-colors">Shuffle</button>
@@ -350,16 +382,16 @@
         </div>
 
         <!-- Chat -->
-        <div id="tabContentChat" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col mt-4 lg:max-h-[40vh] max-h-[60vh] transition-colors">
+        <div id="tabContentChat" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col mt-3 min-h-0 transition-colors">
           <div class="flex items-center gap-1 p-2 border-b dark-border border-[#2a2a3e]">
             <button type="button" id="tabLogBtn" onclick="switchSideTab('log')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white">Log</button>
             <button type="button" id="tabChatBtn" onclick="switchSideTab('chat')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400">Chat</button>
           </div>
-          <div id="logList" class="flex-1 overflow-y-auto p-3 space-y-1 min-h-[150px] no-scrollbar">
+          <div id="logList" class="flex-1 overflow-y-auto p-3 space-y-1 min-h-0 no-scrollbar">
             <div class="text-center text-xs dark-text-muted text-gray-600 py-4">Belum ada aktivitas</div>
           </div>
           <div id="chatPane" class="flex flex-1 flex-col min-h-0" style="display:none">
-          <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-2 min-h-[150px] no-scrollbar">
+          <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 no-scrollbar">
             <div class="text-center text-xs dark-text-muted text-gray-600 py-4">Welcome! Say hi 👋</div>
           </div>
           <div class="p-2 border-t dark-border border-[#2a2a3e]">

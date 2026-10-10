@@ -70,7 +70,10 @@ function resolveWithNode(string $query): ?array
 function resolveYouTubeFallback(string $query): array
 {
     $playlistId = youtubePlaylistId($query);
-    if ($playlistId !== null && (strpos($query, '/playlist') !== false || !preg_match('#/(watch|shorts|embed)/#', $query))) {
+    $isPlaylist = $playlistId !== null
+        && !preg_match('/^(RD|LL)/', $playlistId)
+        && (str_contains($query, '/playlist') || str_contains($query, 'music.youtube.com') || str_starts_with($playlistId, 'PL'));
+    if ($isPlaylist) {
         $songs = youtubePlaylistFeed($playlistId);
         if ($songs) {
             return songsResponse($songs, 'playlist', 'Playlist YouTube');

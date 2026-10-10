@@ -9,6 +9,23 @@ const YTDLP_FLAGS = {
 
 const MAX_ENTRIES = 100;
 
+function canonicalYouTubeUrl(url) {
+  try {
+    const parsed = new URL(url.trim());
+    const host = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    if (host !== 'music.youtube.com' && host !== 'm.youtube.com') return url.trim();
+    const listId = parsed.searchParams.get('list');
+    const videoId = parsed.searchParams.get('v');
+    if (listId && !listId.startsWith('RD') && !listId.startsWith('LL') && (parsed.pathname === '/playlist' || listId.startsWith('PL'))) {
+      return `https://www.youtube.com/playlist?list=${encodeURIComponent(listId)}`;
+    }
+    if (videoId) return `https://www.youtube.com/watch?v=${encodeURIComponent(videoId)}`;
+    return url.trim();
+  } catch {
+    return url.trim();
+  }
+}
+
 function isDirectUrl(query) {
   return /^https?:\/\//i.test(query.trim());
 }
@@ -66,7 +83,7 @@ function mapEntry(entry) {
 }
 
 async function resolve(query) {
-  const trimmed = String(query || '').trim();
+  const trimmed = canonicalYouTubeUrl(String(query || '').trim());
   if (!trimmed) throw new Error('Query kosong.');
 
   if (isDirectUrl(trimmed) && isYouTubePlaylistUrl(trimmed)) {
