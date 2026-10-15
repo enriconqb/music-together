@@ -747,8 +747,20 @@ function localRole() {
 function renderPeople(room) {
   const list = document.getElementById('peopleList');
   if (!list) return;
-  const hostId = room.hostUserId || '';
-  const people = (room.online || []).slice().sort((a, b) => {
+  const hostId = room.hostUserId || state.hostUserId || '';
+  let people = (room.online || []).slice();
+  if (!people.length && (hostId || state.userId)) {
+    const selfIsHost = !hostId || hostId === state.userId;
+    people = [{
+      id: selfIsHost ? (hostId || state.userId) : hostId,
+      name: room.createdBy || state.userName || 'Host',
+      role: localRole(),
+    }];
+    if (!selfIsHost && state.userId) {
+      people.push({ id: state.userId, name: state.userName || 'Guest', role: localRole() });
+    }
+  }
+  people.sort((a, b) => {
     const ah = a.id === hostId ? 0 : 1;
     const bh = b.id === hostId ? 0 : 1;
     if (ah !== bh) return ah - bh;

@@ -79,14 +79,14 @@
   #tabContentQueue, #tabContentChat { min-height: 0; }
   @media (min-width: 1024px) {
     #playerColumns { display: flex; gap: 1.5rem; }
-    #tabContentPlayer { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+    #tabContentPlayer { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto; }
     #tabContentSidebar { width: 24rem; flex-shrink: 0; display: flex; flex-direction: column; margin-top: 0; }
     #tabContentQueue { flex: 1.15; display: flex; max-height: none; }
     #tabContentChat { flex: 1; display: flex; max-height: none; }
   }
   @media (max-width: 1023px) {
     #playerColumns { display: flex; flex-direction: column; min-height: 0; }
-    #tabContentPlayer { flex: 1; flex-direction: column; overflow: hidden; }
+    #tabContentPlayer { flex: 1; flex-direction: column; overflow-y: auto; }
     #tabContentSidebar { flex: 1; flex-direction: column; margin-top: 0; }
     #tabContentQueue, #tabContentChat { flex: 1; max-height: none; }
   }
@@ -369,7 +369,7 @@
           </div>
         </div>
 
-        <div id="peopleCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] mb-3 sm:mb-4">
+        <div id="peopleCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] mb-3 sm:mb-4 shrink-0">
           <h3 class="font-semibold text-sm mb-2">Di room ini</h3>
           <div id="peopleList" class="space-y-1.5"></div>
         </div>
