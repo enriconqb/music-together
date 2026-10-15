@@ -80,13 +80,16 @@
   #tabContentSidebar { min-height: 0; }
   #tabContentQueue, #tabContentChat { min-height: 0; }
   @media (min-width: 1024px) {
-    #playerColumns { display: flex; gap: 1.5rem; }
-    #tabContentPlayer { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto; }
-    #tabContentSidebar { width: 32rem; flex-shrink: 0; display: flex; flex-direction: column; margin-top: 0; }
-    #tabContentQueue { flex: 1.15; display: flex; max-height: none; }
+    header > div,
+    main.app-main { max-width: none; }
+    #playerColumns { display: flex; gap: 1.5rem; flex: 1; height: 100%; min-height: 0; align-items: stretch; }
+    #tabContentPlayer { flex: 1; min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+    #tabContentSidebar { width: 32rem; height: 100%; flex-shrink: 0; display: flex; flex-direction: column; margin-top: 0; min-height: 0; }
+    #tabContentPlayer .video-container { flex: 1 1 auto; height: auto; max-height: none; min-height: 180px; }
+    #tabContentQueue { flex: 1.15; display: flex; max-height: none; min-height: 0; }
     #sideBottom { display: flex; flex: 1; min-height: 0; gap: 0.75rem; }
-    #tabContentChat { flex: 1; display: flex; max-height: none; margin-top: 0; }
-    #peopleCard { width: 11rem; flex-shrink: 0; }
+    #tabContentChat { flex: 1; display: flex; max-height: none; margin-top: 0; min-height: 0; }
+    #peopleCard { width: 11rem; flex-shrink: 0; min-height: 0; }
   }
   @media (max-width: 1023px) {
     #playerColumns { display: flex; flex-direction: column; min-height: 0; }
