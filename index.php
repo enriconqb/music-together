@@ -37,10 +37,12 @@
     #playerScreen[data-mobile-tab="queue"] #tabContentSidebar { display: flex; }
     #playerScreen[data-mobile-tab="queue"] #tabContentQueue { display: flex; }
     #playerScreen[data-mobile-tab="queue"] #tabContentChat { display: none; }
+    #playerScreen[data-mobile-tab="queue"] #sideBottom { display: none; }
 
     #playerScreen[data-mobile-tab="chat"] #tabContentPlayer { display: none; }
     #playerScreen[data-mobile-tab="chat"] #tabContentSidebar { display: flex; }
     #playerScreen[data-mobile-tab="chat"] #tabContentQueue { display: none; }
+    #playerScreen[data-mobile-tab="chat"] #sideBottom { display: flex; }
     #playerScreen[data-mobile-tab="chat"] #tabContentChat { display: flex; }
   }
 
@@ -80,9 +82,11 @@
   @media (min-width: 1024px) {
     #playerColumns { display: flex; gap: 1.5rem; }
     #tabContentPlayer { flex: 1; min-width: 0; display: flex; flex-direction: column; overflow-y: auto; }
-    #tabContentSidebar { width: 24rem; flex-shrink: 0; display: flex; flex-direction: column; margin-top: 0; }
+    #tabContentSidebar { width: 32rem; flex-shrink: 0; display: flex; flex-direction: column; margin-top: 0; }
     #tabContentQueue { flex: 1.15; display: flex; max-height: none; }
-    #tabContentChat { flex: 1; display: flex; max-height: none; }
+    #sideBottom { display: flex; flex: 1; min-height: 0; gap: 0.75rem; }
+    #tabContentChat { flex: 1; display: flex; max-height: none; margin-top: 0; }
+    #peopleCard { width: 11rem; flex-shrink: 0; }
   }
   @media (max-width: 1023px) {
     #playerColumns { display: flex; flex-direction: column; min-height: 0; }
@@ -369,11 +373,6 @@
           </div>
         </div>
 
-        <div id="peopleCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] mb-3 sm:mb-4 shrink-0">
-          <h3 class="font-semibold text-sm mb-2">Di room ini</h3>
-          <div id="peopleList" class="space-y-1.5"></div>
-        </div>
-
         <!-- Add song -->
         <div id="addSongPanel" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] transition-colors">
           <h3 class="font-semibold text-sm mb-3 flex items-center gap-2">
@@ -415,8 +414,9 @@
           </div>
         </div>
 
+        <div id="sideBottom" class="mt-3 min-h-0 flex gap-3">
         <!-- Chat -->
-        <div id="tabContentChat" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col mt-3 min-h-0 transition-colors">
+        <div id="tabContentChat" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col min-h-0 min-w-0 flex-1 transition-colors">
           <div class="flex items-center gap-1 p-2 border-b dark-border border-[#2a2a3e]">
             <button type="button" id="tabLogBtn" onclick="switchSideTab('log')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white">Log</button>
             <button type="button" id="tabChatBtn" onclick="switchSideTab('chat')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400">Chat</button>
@@ -439,6 +439,11 @@
             </div>
           </div>
           </div>
+        </div>
+        <div id="peopleCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col min-h-0 w-44 shrink-0">
+          <h3 class="font-semibold text-sm p-3 border-b dark-border border-[#2a2a3e]">People</h3>
+          <div id="peopleList" class="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0"></div>
+        </div>
         </div>
       </div>
     </div>
