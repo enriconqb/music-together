@@ -146,7 +146,12 @@ function publicRoom(array $room, bool $includeChat = true): array
     $users = [];
     foreach ($room['users'] ?? [] as $user) {
         if (($now - (int)($user['lastSeen'] ?? 0)) < 20000) {
-            $users[] = ['id' => $user['id'], 'name' => $user['name']];
+            $role = (string)($user['role'] ?? '');
+            $users[] = [
+                'id' => $user['id'],
+                'name' => $user['name'],
+                'role' => ($role === 'speaker' || $role === 'requester') ? $role : '',
+            ];
         }
     }
     $out = [
@@ -202,9 +207,16 @@ function touchUser(array &$room, array $input): void
     if ($id === '') {
         return;
     }
+    $prev = $room['users'][$id] ?? [];
+    $role = (string)($prev['role'] ?? '');
+    $incoming = (string)($input['role'] ?? '');
+    if ($incoming === 'speaker' || $incoming === 'requester') {
+        $role = $incoming;
+    }
     $room['users'][$id] = [
         'id' => $id,
         'name' => $name,
+        'role' => $role,
         'lastSeen' => (int)(microtime(true) * 1000),
     ];
     if (($room['hostUserId'] ?? '') === '' && strcasecmp($name, (string)($room['createdBy'] ?? '')) === 0) {

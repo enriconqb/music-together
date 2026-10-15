@@ -369,6 +369,11 @@
           </div>
         </div>
 
+        <div id="peopleCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] mb-3 sm:mb-4">
+          <h3 class="font-semibold text-sm mb-2">Di room ini</h3>
+          <div id="peopleList" class="space-y-1.5"></div>
+        </div>
+
         <!-- Add song -->
         <div id="addSongPanel" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] transition-colors">
           <h3 class="font-semibold text-sm mb-3 flex items-center gap-2">

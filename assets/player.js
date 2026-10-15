@@ -454,6 +454,7 @@ async function pollRoom() {
       code: state.roomId,
       userId: state.userId,
       userName: state.userName,
+      role: localRole(),
       sinceChat: state.lastChat,
       sinceLog: state.lastLog,
     });
@@ -486,6 +487,7 @@ function applyRoom(room, initial) {
   updateQueueUI();
   const count = (room.online || []).length;
   document.getElementById('onlineCount').textContent = count + ' online';
+  renderPeople(room);
   (room.chat || []).forEach((msg) => {
     if (msg.time > state.lastChat) {
       appendChatMessage(msg);
@@ -732,6 +734,48 @@ function applyLocalVolume() {
   btn.classList.toggle('bg-[#1a1a2e]', !state.muted);
   btn.classList.toggle('border-[#3a3a4e]', !state.muted);
   btn.classList.toggle('text-gray-300', !state.muted);
+}
+
+function localRole() {
+  if (!state.roomId) return '';
+  let saved = '';
+  try { saved = sessionStorage.getItem('synctunes_role_' + state.roomId) || ''; } catch (e) {}
+  if (saved === 'speaker' || saved === 'requester') return saved;
+  return state.muted ? 'requester' : '';
+}
+
+function renderPeople(room) {
+  const list = document.getElementById('peopleList');
+  if (!list) return;
+  const hostId = room.hostUserId || '';
+  const people = (room.online || []).slice().sort((a, b) => {
+    const ah = a.id === hostId ? 0 : 1;
+    const bh = b.id === hostId ? 0 : 1;
+    if (ah !== bh) return ah - bh;
+    return String(a.name || '').localeCompare(String(b.name || ''));
+  });
+  if (!people.length) {
+    list.innerHTML = '<p class="text-xs text-gray-500">Belum ada yang join.</p>';
+    return;
+  }
+  list.innerHTML = people.map((person) => {
+    const mine = person.id === state.userId;
+    const badges = [];
+    if (person.id === hostId) {
+      badges.push('<span class="px-1.5 py-0.5 rounded-md bg-violet-600/30 text-violet-200">Host</span>');
+    }
+    if (person.role === 'speaker') {
+      badges.push('<span class="px-1.5 py-0.5 rounded-md bg-[#2a2a3e] text-gray-200">Speaker</span>');
+    } else if (person.role === 'requester') {
+      badges.push('<span class="px-1.5 py-0.5 rounded-md bg-[#14532d] text-green-200">Requester</span>');
+    } else {
+      badges.push('<span class="px-1.5 py-0.5 rounded-md bg-[#0f0f1a] text-gray-500">Belum pilih</span>');
+    }
+    return `<div class="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-[#0f0f1a]">
+      <span class="text-xs truncate">${escapeHtml(person.name || 'Guest')}${mine ? ' <span class="text-gray-500">(kamu)</span>' : ''}</span>
+      <span class="flex gap-1 shrink-0 text-[10px] font-medium">${badges.join('')}</span>
+    </div>`;
+  }).join('');
 }
 
 function toggleMute() {
