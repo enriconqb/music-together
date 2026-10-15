@@ -445,6 +445,6 @@
   </div>
 </main>
 
-<script src="assets/player.js?v=14"></script>
+<script src="assets/player.js?v=<?php echo filemtime(__DIR__ . '/assets/player.js'); ?>"></script>
 </body>
 </html>
