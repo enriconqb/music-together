@@ -242,6 +242,9 @@ function listRooms(string $dir): array
         if (!empty($data['_deleted']) || empty($data['code'])) {
             continue;
         }
+        if (!empty($data['emptySince']) && count($data['users'] ?? []) === 0 && ((int)(microtime(true) * 1000) - (int)$data['emptySince']) >= 60000) {
+            continue;
+        }
         $pub = publicRoom($data, false);
         $item = [
             'code' => $pub['code'],

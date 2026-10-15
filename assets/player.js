@@ -267,7 +267,8 @@ async function readJson(res) {
 
 function deletionLabel(room) {
   if (!room.deleteAt || (room.online || 0) > 0) return '';
-  const left = Math.max(0, Math.ceil((Number(room.deleteAt) - Date.now()) / 1000));
+  const left = Math.ceil((Number(room.deleteAt) - Date.now()) / 1000);
+  if (left <= 0) return '';
   return `<p class="text-[11px] text-amber-300" data-delete-at="${Number(room.deleteAt)}">hapus dalam ${left} dtk</p>`;
 }
 
@@ -297,7 +298,19 @@ function renderRoomList(rooms) {
 
 function tickRoomCountdowns() {
   document.querySelectorAll('[data-delete-at]').forEach((el) => {
-    const left = Math.max(0, Math.ceil((Number(el.dataset.deleteAt) - Date.now()) / 1000));
+    const left = Math.ceil((Number(el.dataset.deleteAt) - Date.now()) / 1000);
+    if (left <= 0) {
+      const card = el.closest('.flex.items-center.justify-between');
+      if (card) card.remove();
+      const container = document.getElementById('roomList');
+      const countEl = document.getElementById('roomListCount');
+      const leftCards = container ? container.querySelectorAll('.font-mono').length : 0;
+      if (countEl) countEl.textContent = leftCards + ' room' + (leftCards !== 1 ? 's' : '');
+      if (container && leftCards === 0) {
+        container.innerHTML = '<p class="dark-text-muted text-gray-500 text-sm text-center py-6">Belum ada room. Buat yang pertama.</p>';
+      }
+      return;
+    }
     el.textContent = 'hapus dalam ' + left + ' dtk';
   });
 }
@@ -308,7 +321,7 @@ async function refreshRoomList() {
   try {
     const data = await api('api/room.php', { action: 'list' });
     statusEl.innerHTML = '<span class="text-green-400">●</span> Server lokal aktif';
-    state.listedRooms = data.rooms || [];
+    state.listedRooms = (data.rooms || []).filter((room) => !room.deleteAt || Number(room.deleteAt) > Date.now());
     renderRoomList(state.listedRooms);
   } catch (err) {
     statusEl.innerHTML = '<span class="text-red-400">●</span> Server tidak terjangkau';
