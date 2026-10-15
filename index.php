@@ -83,13 +83,13 @@
     header > div,
     main.app-main { max-width: none; }
     #playerColumns { display: flex; gap: 1.5rem; flex: 1; height: 100%; min-height: 0; align-items: stretch; }
-    #tabContentPlayer { flex: 1; min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
-    #tabContentSidebar { width: 32rem; height: 100%; flex-shrink: 0; display: flex; flex-direction: column; margin-top: 0; min-height: 0; }
+    #tabContentPlayer { flex: 1 1 50%; width: auto; max-width: none; min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
+    #tabContentSidebar { flex: 1 1 50%; width: auto; max-width: none; min-width: 0; height: 100%; display: flex; flex-direction: column; margin-top: 0; min-height: 0; }
     #tabContentPlayer .video-container { flex: 1 1 auto; height: auto; max-height: none; min-height: 180px; }
     #tabContentQueue { flex: 1.15; display: flex; max-height: none; min-height: 0; }
     #sideBottom { display: flex; flex: 1; min-height: 0; gap: 0.75rem; }
     #tabContentChat { flex: 1; display: flex; max-height: none; margin-top: 0; min-height: 0; }
-    #peopleCard { width: 11rem; flex-shrink: 0; min-height: 0; }
+    #peopleCard { width: 14rem; flex-shrink: 0; min-height: 0; }
   }
   @media (max-width: 1023px) {
     #playerColumns { display: flex; flex-direction: column; min-height: 0; }
@@ -443,7 +443,7 @@
           </div>
           </div>
         </div>
-        <div id="peopleCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col min-h-0 w-44 shrink-0">
+        <div id="peopleCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col min-h-0 w-56 shrink-0">
           <h3 class="font-semibold text-sm p-3 border-b dark-border border-[#2a2a3e]">People</h3>
           <div id="peopleList" class="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0"></div>
         </div>

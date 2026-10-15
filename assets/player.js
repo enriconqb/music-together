@@ -796,9 +796,9 @@ function renderPeople(room) {
     } else {
       badges.push('<span class="px-1.5 py-0.5 rounded-md bg-[#0f0f1a] text-gray-500">Belum pilih</span>');
     }
-    return `<div class="flex items-center justify-between gap-2 px-2 py-1.5 rounded-lg bg-[#0f0f1a]">
-      <span class="text-xs truncate">${escapeHtml(person.name || 'Guest')}${mine ? ' <span class="text-gray-500">(kamu)</span>' : ''}</span>
-      <span class="flex gap-1 shrink-0 text-[10px] font-medium">${badges.join('')}</span>
+    return `<div class="px-2 py-1.5 rounded-lg bg-[#0f0f1a]">
+      <p class="text-xs break-words">${escapeHtml(person.name || 'Guest')}${mine ? ' <span class="text-gray-500">(kamu)</span>' : ''}</p>
+      <div class="flex flex-wrap gap-1 mt-1 text-[10px] font-medium">${badges.join('')}</div>
     </div>`;
   }).join('');
 }

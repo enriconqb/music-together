@@ -58,20 +58,23 @@ async function fetchPlaylistChunk(url, playlistItems) {
 }
 
 async function fetchYouTubePlaylistEntries(url) {
+  const MAX_ENTRIES = 1000;
   const first = await ytDlpJson(url, buildPlaylistFlags({ playlistEnd: 1000 }));
   let entries = filterValidEntries(first.entries);
   const reported = resolvePlaylistTotal(first, entries);
-  const ytdlpCount = entries.length;
+  let start = entries.length + 1;
 
-  if (entries.length < reported) {
-    for (let start = entries.length + 1; start <= reported; start += CHUNK_SIZE) {
-      const end = Math.min(start + CHUNK_SIZE - 1, reported);
-      const pageEntries = await fetchPlaylistChunk(url, `${start}-${end}`);
-      if (!pageEntries.length) continue;
-      entries = dedupeEntries(entries.concat(pageEntries));
-      if (entries.length >= reported) break;
-    }
+  while (entries.length < MAX_ENTRIES && start <= MAX_ENTRIES && (entries.length < reported || entries.length % CHUNK_SIZE === 0)) {
+    const end = Math.min(start + CHUNK_SIZE - 1, MAX_ENTRIES);
+    const pageEntries = await fetchPlaylistChunk(url, `${start}-${end}`);
+    if (!pageEntries.length) break;
+    const before = entries.length;
+    entries = dedupeEntries(entries.concat(pageEntries));
+    if (entries.length <= before || pageEntries.length < CHUNK_SIZE) break;
+    start = entries.length + 1;
   }
+
+  const ytdlpCount = entries.length;
 
   try {
     const innertube = await fetchPlaylistViaInnertube(url);
