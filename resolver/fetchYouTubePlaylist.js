@@ -63,13 +63,16 @@ async function fetchYouTubePlaylistEntries(url) {
   let entries = filterValidEntries(first.entries);
   const reported = resolvePlaylistTotal(first, entries);
   let start = entries.length + 1;
+  console.error(`[Playlist] halaman pertama: ${entries.length}, metadata: ${reported}`);
 
   while (entries.length < MAX_ENTRIES && start <= MAX_ENTRIES && (entries.length < reported || entries.length % CHUNK_SIZE === 0)) {
     const end = Math.min(start + CHUNK_SIZE - 1, MAX_ENTRIES);
     const pageEntries = await fetchPlaylistChunk(url, `${start}-${end}`);
+    console.error(`[Playlist] potongan ${start}-${end}: ${pageEntries.length}`);
     if (!pageEntries.length) break;
     const before = entries.length;
     entries = dedupeEntries(entries.concat(pageEntries));
+    console.error(`[Playlist] terkumpul: ${entries.length}`);
     if (entries.length <= before || pageEntries.length < CHUNK_SIZE) break;
     start = entries.length + 1;
   }

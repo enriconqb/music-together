@@ -118,6 +118,7 @@ const query = process.argv.slice(2).join(' ').trim();
 
 resolve(query)
   .then((result) => {
+    console.error(`[Playlist] selesai type=${result.type} jumlah=${(result.entries || []).length}`);
     process.stdout.write(JSON.stringify(result));
   })
   .catch((error) => {

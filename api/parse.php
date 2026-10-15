@@ -27,6 +27,11 @@ $fallback = resolveYouTubeFallback($query);
 if (empty($fallback['ok']) && is_array($fromNode) && !empty($fromNode['error'])) {
     $fallback['error'] = $fromNode['error'];
 }
+$fallback['debug'] = [
+    'source' => 'php',
+    'count' => count($fallback['songs'] ?? []),
+    'log' => substr(trim((string)($fromNode['error'] ?? 'Node tidak dipakai atau gagal sebelum ada pesan.')), -2000),
+];
 if (empty($fallback['ok'])) {
     http_response_code(422);
 }
@@ -43,6 +48,7 @@ function procOpenAllowed(): bool
 
 function resolveWithNode(string $query): ?array
 {
+    @set_time_limit(0);
     $node = getenv('NODE_PATH_BIN') ?: 'node';
     $script = dirname(__DIR__) . DIRECTORY_SEPARATOR . 'resolver' . DIRECTORY_SEPARATOR . 'resolve.js';
     $cmd = escapeshellarg($node) . ' ' . escapeshellarg($script) . ' ' . escapeshellarg($query);
@@ -64,7 +70,13 @@ function resolveWithNode(string $query): ?array
     if (!is_array($decoded) || empty($decoded['entries'])) {
         return ['ok' => false, 'error' => 'Resolver tidak mengembalikan lagu.'];
     }
-    return songsResponse($decoded['entries'], (string)($decoded['type'] ?? 'video'), (string)($decoded['title'] ?? ''));
+    $result = songsResponse($decoded['entries'], (string)($decoded['type'] ?? 'video'), (string)($decoded['title'] ?? ''));
+    $result['debug'] = [
+        'source' => 'node',
+        'count' => count($result['songs'] ?? []),
+        'log' => substr(trim((string)$stderr), -2000),
+    ];
+    return $result;
 }
 
 function resolveYouTubeFallback(string $query): array

@@ -1,17 +1,57 @@
-const { spawn } = require('child_process');
+const { spawn, spawnSync } = require('child_process');
+const fs = require('fs');
 const path = require('path');
 const { getYtDlpCommonFlags } = require('./ytDlpAuth');
 
-const BOT_BINARY = path.join(
+const WINDOWS_BINARY = path.join(
   'C:\\laragon\\www\\bot-discord',
   'node_modules',
   '@distube',
   'yt-dlp',
   'bin',
-  process.platform === 'win32' ? 'yt-dlp.exe' : 'yt-dlp',
+  'yt-dlp.exe',
 );
-const PYTHON = process.env.YT_DLP_PYTHON || 'C:\\laragon\\bin\\python\\python-3.10\\python.exe';
-const YTDLP_PATH = process.env.YT_DLP_PATH || BOT_BINARY;
+
+function commandExists(cmd) {
+  try {
+    const which = process.platform === 'win32' ? 'where' : 'which';
+    const result = spawnSync(which, [cmd], { encoding: 'utf8', windowsHide: true });
+    return result.status === 0;
+  } catch {
+    return false;
+  }
+}
+
+function fileReady(file) {
+  return Boolean(file) && fs.existsSync(file);
+}
+
+function resolveLaunch() {
+  if (fileReady(process.env.YT_DLP_PATH)) {
+    return { cmd: process.env.YT_DLP_PATH, argsPrefix: [], label: process.env.YT_DLP_PATH };
+  }
+  if (process.platform === 'win32' && fileReady(WINDOWS_BINARY)) {
+    return { cmd: WINDOWS_BINARY, argsPrefix: [], label: WINDOWS_BINARY };
+  }
+  if (commandExists('yt-dlp')) {
+    return { cmd: 'yt-dlp', argsPrefix: [], label: 'yt-dlp' };
+  }
+  const pythons = [
+    process.env.YT_DLP_PYTHON,
+    process.platform === 'win32' ? 'C:\\laragon\\bin\\python\\python-3.10\\python.exe' : '',
+    'python3',
+    'python',
+  ].filter(Boolean);
+  for (const bin of pythons) {
+    const isPath = bin.includes('\\') || bin.includes('/');
+    if (isPath ? !fileReady(bin) : !commandExists(bin)) continue;
+    return { cmd: bin, argsPrefix: ['-m', 'yt_dlp'], label: `${bin} -m yt_dlp` };
+  }
+  return { cmd: 'yt-dlp', argsPrefix: [], label: 'yt-dlp (tidak ditemukan di PATH)' };
+}
+
+const LAUNCH = resolveLaunch();
+console.error(`[yt-dlp] memakai ${LAUNCH.label}`);
 
 function kebab(key) {
   return key.replace(/[A-Z]/g, (letter) => `-${letter.toLowerCase()}`);
@@ -58,11 +98,7 @@ function parseJsonOutput(stdout, stderr) {
 }
 
 function spawnYtDlp(args, options) {
-  const fs = require('fs');
-  if (process.env.YT_DLP_PATH || fs.existsSync(YTDLP_PATH)) {
-    return spawn(YTDLP_PATH, args, options);
-  }
-  return spawn(PYTHON, ['-m', 'yt_dlp', ...args], options);
+  return spawn(LAUNCH.cmd, [...LAUNCH.argsPrefix, ...args], options);
 }
 
 function ytDlpJson(url, flags = {}, options = {}) {
@@ -82,7 +118,7 @@ function ytDlpJson(url, flags = {}, options = {}) {
     });
 
     child.on('error', (error) => {
-      reject(new Error(`yt-dlp tidak bisa dijalankan (${YTDLP_PATH}): ${error.message}`));
+      reject(new Error(`yt-dlp tidak bisa dijalankan (${LAUNCH.label}): ${error.message}`));
     });
 
     child.on('close', (code) => {
@@ -100,4 +136,4 @@ function ytDlpJson(url, flags = {}, options = {}) {
   });
 }
 
-module.exports = { ytDlpJson, YTDLP_PATH };
+module.exports = { ytDlpJson, YTDLP_PATH: LAUNCH.label };
