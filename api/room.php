@@ -153,6 +153,7 @@ function publicRoom(array $room, bool $includeChat = true): array
         'code' => $room['code'],
         'createdBy' => $room['createdBy'],
         'hostUserId' => (string)($room['hostUserId'] ?? ''),
+        'hostOnly' => !empty($room['hostOnly']),
         'createdAt' => $room['createdAt'],
         'isPrivate' => !empty($room['passwordHash']),
         'queue' => array_values($room['queue'] ?? []),
@@ -181,6 +182,17 @@ function appendLog(array &$room, string $name, string $text): void
         'time' => (int)(microtime(true) * 1000),
     ];
     $room['log'] = array_slice($log, -80);
+}
+
+function assertHost(array $room, array $input): void
+{
+    if (empty($room['hostOnly'])) {
+        return;
+    }
+    $actor = substr((string)($input['userId'] ?? ''), 0, 40);
+    if ($actor === '' || $actor !== (string)($room['hostUserId'] ?? '')) {
+        throw new RuntimeException('Hanya host yang bisa mengatur room ini.');
+    }
 }
 
 function touchUser(array &$room, array $input): void
@@ -219,13 +231,19 @@ function listRooms(string $dir): array
             continue;
         }
         $pub = publicRoom($data, false);
-        $rooms[] = [
+        $item = [
             'code' => $pub['code'],
             'createdBy' => $pub['createdBy'],
             'createdAt' => $pub['createdAt'],
             'isPrivate' => $pub['isPrivate'],
+            'hostOnly' => !empty($pub['hostOnly']),
             'online' => count($pub['online']),
         ];
+        if ($item['online'] === 0 && !empty($data['emptySince'])) {
+            $item['emptySince'] = (int)$data['emptySince'];
+            $item['deleteAt'] = (int)$data['emptySince'] + 60000;
+        }
+        $rooms[] = $item;
     }
     usort($rooms, fn($a, $b) => ($b['createdAt'] <=> $a['createdAt']));
     return $rooms;
@@ -247,6 +265,7 @@ function createRoom(string $dir, array $input): array
         'code' => $code,
         'createdBy' => $name,
         'hostUserId' => substr(trim((string)($input['userId'] ?? '')), 0, 40),
+        'hostOnly' => array_key_exists('hostOnly', $input) ? !empty($input['hostOnly']) : true,
         'createdAt' => (int)(microtime(true) * 1000),
         'passwordHash' => $password !== '' ? password_hash($password, PASSWORD_DEFAULT) : null,
         'queue' => [],
@@ -331,6 +350,9 @@ function mutate(string $dir, array $input, string $op): array
     try {
         $room = withRoom($path, function (array $room) use ($input, $op) {
             touchUser($room, $input);
+            if (!in_array($op, ['chat', 'leave'], true)) {
+                assertHost($room, $input);
+            }
             $room['revision'] = (int)($room['revision'] ?? 0) + 1;
             $queue = array_values($room['queue'] ?? []);
 
@@ -517,12 +539,18 @@ function saveProgress(string $dir, array $input): array
         http_response_code(404);
         return ['ok' => false, 'error' => 'Room tidak ditemukan.'];
     }
-    $room = withRoom($path, function (array $room) use ($input) {
-        touchUser($room, $input);
-        $room['position'] = max(0, (float)($input['position'] ?? 0));
-        $room['positionAt'] = (int)(microtime(true) * 1000);
-        return $room;
-    });
+    try {
+        $room = withRoom($path, function (array $room) use ($input) {
+            touchUser($room, $input);
+            assertHost($room, $input);
+            $room['position'] = max(0, (float)($input['position'] ?? 0));
+            $room['positionAt'] = (int)(microtime(true) * 1000);
+            return $room;
+        });
+    } catch (RuntimeException $e) {
+        http_response_code(403);
+        return ['ok' => false, 'error' => $e->getMessage()];
+    }
     if (!empty($room['_deleted'])) {
         return ['ok' => true, 'deleted' => true];
     }
@@ -537,14 +565,20 @@ function saveTransport(string $dir, array $input): array
         http_response_code(404);
         return ['ok' => false, 'error' => 'Room tidak ditemukan.'];
     }
-    $room = withRoom($path, function (array $room) use ($input) {
-        touchUser($room, $input);
-        $room['isPlaying'] = !empty($input['isPlaying']);
-        $room['position'] = max(0, (float)($input['position'] ?? 0));
-        $room['positionAt'] = (int)(microtime(true) * 1000);
-        appendLog($room, (string)($input['userName'] ?? 'Guest'), !empty($input['isPlaying']) ? 'menekan play' : 'menekan pause');
-        return $room;
-    });
+    try {
+        $room = withRoom($path, function (array $room) use ($input) {
+            touchUser($room, $input);
+            assertHost($room, $input);
+            $room['isPlaying'] = !empty($input['isPlaying']);
+            $room['position'] = max(0, (float)($input['position'] ?? 0));
+            $room['positionAt'] = (int)(microtime(true) * 1000);
+            appendLog($room, (string)($input['userName'] ?? 'Guest'), !empty($input['isPlaying']) ? 'menekan play' : 'menekan pause');
+            return $room;
+        });
+    } catch (RuntimeException $e) {
+        http_response_code(403);
+        return ['ok' => false, 'error' => $e->getMessage()];
+    }
     if (!empty($room['_deleted'])) {
         return ['ok' => true, 'deleted' => true];
     }

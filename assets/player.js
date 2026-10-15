@@ -24,6 +24,11 @@ const state = {
   playerMode: 'audio',
   pendingSeek: null,
   ignoreProgressUntil: 0,
+  hostUserId: '',
+  hostOnly: false,
+  listedRooms: [],
+  listPoll: null,
+  countdownTimer: null,
 };
 
 function loadProfile() {
@@ -230,6 +235,7 @@ function onPlayerStateChange(e) {
   }
 }
 function onPlayerError() {
+  if (!canControl()) return;
   showToast('Lagu tidak tersedia, melewati...', 'warning');
   setTimeout(() => skipSong(), 1200);
 }
@@ -259,6 +265,12 @@ async function readJson(res) {
   return { ok: false, error: plain.slice(0, 180) || 'Respons server bukan JSON.' };
 }
 
+function deletionLabel(room) {
+  if (!room.deleteAt || (room.online || 0) > 0) return '';
+  const left = Math.max(0, Math.ceil((Number(room.deleteAt) - Date.now()) / 1000));
+  return `<p class="text-[11px] text-amber-300" data-delete-at="${Number(room.deleteAt)}">hapus dalam ${left} dtk</p>`;
+}
+
 function renderRoomList(rooms) {
   const container = document.getElementById('roomList');
   const countEl = document.getElementById('roomListCount');
@@ -273,24 +285,43 @@ function renderRoomList(rooms) {
         <div class="flex items-center gap-2">
           <span class="font-mono font-bold text-violet-400 text-sm">${room.code}</span>
           ${room.isPrivate ? '<span class="text-yellow-500 text-xs">terkunci</span>' : ''}
+          ${room.hostOnly ? '<span class="text-amber-300 text-[10px]">host</span>' : ''}
         </div>
         <p class="text-xs dark-text-muted text-gray-400 truncate">oleh ${escapeHtml(room.createdBy || 'Unknown')} · ${room.online || 0} online</p>
+        ${deletionLabel(room)}
       </div>
       <button type="button" onclick="joinRoomFromList('${room.code}', ${room.isPrivate ? 'true' : 'false'})"
         class="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg text-xs font-medium text-white ml-2">Join</button>
     </div>`).join('');
 }
 
-async function setupRoomList() {
+function tickRoomCountdowns() {
+  document.querySelectorAll('[data-delete-at]').forEach((el) => {
+    const left = Math.max(0, Math.ceil((Number(el.dataset.deleteAt) - Date.now()) / 1000));
+    el.textContent = 'hapus dalam ' + left + ' dtk';
+  });
+}
+
+async function refreshRoomList() {
   const statusEl = document.getElementById('fbStatus');
+  if (state.roomId || !statusEl) return;
   try {
     const data = await api('api/room.php', { action: 'list' });
     statusEl.innerHTML = '<span class="text-green-400">●</span> Server lokal aktif';
-    renderRoomList(data.rooms || []);
+    state.listedRooms = data.rooms || [];
+    renderRoomList(state.listedRooms);
   } catch (err) {
     statusEl.innerHTML = '<span class="text-red-400">●</span> Server tidak terjangkau';
     document.getElementById('roomList').innerHTML = '<p class="text-sm text-center text-red-400 py-6">Gagal memuat room.</p>';
   }
+}
+
+function setupRoomList() {
+  if (state.listPoll) clearInterval(state.listPoll);
+  if (state.countdownTimer) clearInterval(state.countdownTimer);
+  refreshRoomList();
+  state.listPoll = setInterval(refreshRoomList, 2000);
+  state.countdownTimer = setInterval(tickRoomCountdowns, 1000);
 }
 
 async function createRoom() {
@@ -304,7 +335,8 @@ async function createRoom() {
   }
   state.userName = name;
   try {
-    const data = await api('api/room.php', { action: 'create', userName: name, userId: state.userId, password });
+    const hostOnly = document.getElementById('hostOnlyCheck').checked;
+    const data = await api('api/room.php', { action: 'create', userName: name, userId: state.userId, password, hostOnly });
     enterRoom(data.room);
   } catch (err) {
     showToast(err.message, 'error');
@@ -447,6 +479,8 @@ function applyRoom(room, initial) {
   state.queue = room.queue || [];
   state.currentIndex = room.currentIndex;
   state.hostUserId = room.hostUserId || '';
+  state.hostOnly = !!room.hostOnly;
+  applyHostLock();
   state.revision = room.revision;
   state.playNonce = room.playNonce || 0;
   updateQueueUI();
@@ -476,7 +510,44 @@ function applyRoom(room, initial) {
   state.applyingRemote = false;
 }
 
+function canControl() {
+  return !state.hostOnly || state.userId === state.hostUserId;
+}
+
+function denyControl() {
+  if (canControl()) return false;
+  showToast('Hanya host yang mengatur pemutaran', 'info');
+  return true;
+}
+
+function applyHostLock() {
+  const allowed = canControl();
+  document.querySelectorAll('[data-host-control]').forEach((el) => {
+    el.disabled = !allowed;
+    el.classList.toggle('opacity-40', !allowed);
+    el.classList.toggle('pointer-events-none', !allowed);
+  });
+  const addPanel = document.getElementById('addSongPanel');
+  if (addPanel) addPanel.classList.toggle('hidden', !allowed);
+  ['clearQueueBtn', 'shuffleQueueBtn'].forEach((id) => {
+    const btn = document.getElementById(id);
+    if (!btn) return;
+    btn.disabled = !allowed;
+    btn.classList.toggle('hidden', !allowed);
+  });
+  const bar = document.getElementById('progressBarContainer');
+  if (bar) bar.classList.toggle('pointer-events-none', !allowed);
+  const label = document.getElementById('hostLockLabel');
+  if (!label) return;
+  if (!state.hostOnly) {
+    label.textContent = '';
+    return;
+  }
+  label.textContent = allowed ? 'Kamu host' : 'Hanya host yang mengatur pemutaran';
+}
+
 async function addSongFromInput() {
+  if (denyControl()) return;
   const input = document.getElementById('songUrlInput');
   const q = input.value.trim();
   if (!q || !state.roomId) return;
@@ -588,6 +659,7 @@ function playSongAtIndex(index, broadcast) {
 }
 
 function togglePlayPause() {
+  if (denyControl()) return;
   const song = state.queue[state.currentIndex];
   if (!song) return;
   if (song.source !== 'youtube') {
@@ -699,6 +771,7 @@ function chooseRole(role) {
 }
 
 function skipSong() {
+  if (denyControl()) return;
   if (!state.queue.length) return;
   let next;
   if (state.isShuffle) {
@@ -711,6 +784,7 @@ function skipSong() {
 }
 
 function playPrevious() {
+  if (denyControl()) return;
   if (!state.queue.length) return;
   if (state.ytPlayer && state.ytReady && state.ytPlayer.getCurrentTime() > 3) {
     state.ytPlayer.seekTo(0);
@@ -723,31 +797,37 @@ function playPrevious() {
 }
 
 function onSongEnd() {
+  if (!canControl()) return;
   if (state.isRepeat) playSongAtIndex(state.currentIndex, true);
   else skipSong();
 }
 
 function banFromQueue(songId) {
+  if (denyControl()) return;
   api('api/room.php', { action: 'ban', code: state.roomId, userId: state.userId, userName: state.userName, songId })
     .then((data) => applyRoom({ ...data.room, chat: [] }, false))
     .catch((err) => showToast(err.message, 'error'));
 }
 function removeFromQueue(songId) {
+  if (denyControl()) return;
   api('api/room.php', { action: 'remove', code: state.roomId, userId: state.userId, userName: state.userName, songId })
     .then((data) => applyRoom({ ...data.room, chat: [] }, false))
     .catch((err) => showToast(err.message, 'error'));
 }
 function playNow(songId) {
+  if (denyControl()) return;
   const idx = state.queue.findIndex((s) => s.id === songId);
   if (idx >= 0) playSongAtIndex(idx, true);
 }
 function clearQueue() {
+  if (denyControl()) return;
   if (!confirm('Kosongkan seluruh antrian?')) return;
   api('api/room.php', { action: 'clear', code: state.roomId, userId: state.userId, userName: state.userName })
     .then((data) => applyRoom({ ...data.room, chat: [] }, false))
     .catch((err) => showToast(err.message, 'error'));
 }
 function shuffleQueue() {
+  if (denyControl()) return;
   if (state.queue.length < 2) return;
   const ids = state.queue.map((s) => s.id);
   for (let i = ids.length - 1; i > 0; i--) {
@@ -780,16 +860,16 @@ function updateQueueUI() {
   container.innerHTML = visible.map(({ song, i }) => {
     const isActive = i === state.currentIndex;
     const icon = song.source === 'youtube' ? '▶' : '♫';
-    return `<div class="flex items-center gap-2 p-2 rounded-lg ${isActive ? 'bg-violet-600/20 border border-violet-500/30' : 'dark-hover hover:bg-[#252540]'} group" draggable="true" data-song-id="${song.id}">
+    return `<div class="flex items-center gap-2 p-2 rounded-lg ${isActive ? 'bg-violet-600/20 border border-violet-500/30' : 'dark-hover hover:bg-[#252540]'} group" draggable="${canControl() ? 'true' : 'false'}" data-song-id="${song.id}">
       <div class="text-xs w-4 text-center">${icon}</div>
       <div class="flex-1 min-w-0">
         <p class="text-xs sm:text-sm font-medium truncate ${isActive ? 'text-violet-400' : ''}">${escapeHtml(song.title)}</p>
         <p class="text-[10px] text-gray-500 truncate">${escapeHtml(song.artist)} · ${escapeHtml(song.addedBy || '')}</p>
       </div>
-      <div class="flex gap-0.5 opacity-0 group-hover:opacity-100">
-        <button type="button" onclick="playNow('${song.id}')" class="p-1 text-gray-400 hover:text-violet-400" title="Putar">▶</button>
-        ${state.userId && state.userId === state.hostUserId ? `<button type="button" onclick="banFromQueue('${song.id}')" class="px-1.5 py-0.5 text-[10px] font-semibold text-red-300 hover:text-white" title="Ban">Ban</button>` : ''}
-        <button type="button" onclick="removeFromQueue('${song.id}')" class="p-1 text-gray-400 hover:text-red-400" title="Hapus">✕</button>
+      <div class="flex gap-0.5 ${canControl() ? 'opacity-0 group-hover:opacity-100' : 'hidden'}">
+        ${canControl() ? `<button type="button" onclick="playNow('${song.id}')" class="p-1 text-gray-400 hover:text-violet-400" title="Putar">▶</button>` : ''}
+        ${canControl() && state.userId && state.userId === state.hostUserId ? `<button type="button" onclick="banFromQueue('${song.id}')" class="px-1.5 py-0.5 text-[10px] font-semibold text-red-300 hover:text-white" title="Ban">Ban</button>` : ''}
+        ${canControl() ? `<button type="button" onclick="removeFromQueue('${song.id}')" class="p-1 text-gray-400 hover:text-red-400" title="Hapus">✕</button>` : ''}
       </div>
     </div>`;
   }).join('');
@@ -841,6 +921,7 @@ function resumeSeconds(room) {
 }
 
 function reportProgress(useBeacon) {
+  if (!canControl()) return;
   if (!state.roomId || Date.now() < state.ignoreProgressUntil) return;
   const song = state.queue[state.currentIndex];
   if (!song || song.source !== 'youtube' || !state.ytPlayer || !state.ytReady) return;
@@ -867,6 +948,7 @@ function stopProgressTracker() {
 }
 
 function setupDragAndDrop() {
+  if (!canControl()) return;
   let draggedId = null;
   document.querySelectorAll('[data-song-id]').forEach((el) => {
     el.addEventListener('dragstart', () => { draggedId = el.dataset.songId; });
@@ -878,6 +960,7 @@ function setupDragAndDrop() {
   });
 }
 function reorderQueue(fromId, toId) {
+  if (denyControl()) return;
   const ids = state.queue.map((s) => s.id);
   const fi = ids.indexOf(fromId);
   const ti = ids.indexOf(toId);
@@ -986,6 +1069,7 @@ function showToast(msg, type = 'info') {
 }
 
 document.getElementById('progressBarContainer')?.addEventListener('click', function (e) {
+  if (!canControl()) return;
   if (!state.ytPlayer || !state.ytReady) return;
   const song = state.queue[state.currentIndex];
   if (!song || song.source !== 'youtube') return;

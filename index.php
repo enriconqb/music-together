@@ -206,6 +206,12 @@
             class="dark-input input-focus w-full px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm placeholder-gray-500 mb-3 transition-all">
 
           <div class="flex items-center gap-2 mb-3">
+            <input type="checkbox" id="hostOnlyCheck" checked
+              class="w-4 h-4 rounded border-gray-600 bg-[#0f0f1a] text-violet-600 focus:ring-violet-500 cursor-pointer">
+            <label for="hostOnlyCheck" class="dark-text text-sm text-gray-300 cursor-pointer">Hanya host yang mengatur pemutaran</label>
+          </div>
+
+          <div class="flex items-center gap-2 mb-3">
             <input type="checkbox" id="privateRoomCheck"
               onchange="document.getElementById('passwordField').classList.toggle('hidden', !this.checked)"
               class="w-4 h-4 rounded border-gray-600 bg-[#0f0f1a] text-violet-600 focus:ring-violet-500 cursor-pointer">
@@ -316,6 +322,7 @@
               </div>
               <span id="nowPlayingSource" class="dark-bg-tertiary text-[10px] px-1.5 py-0.5 rounded bg-[#2a2a3e] dark-text-muted text-gray-400">—</span>
               <span id="nowPlayingAddedBy" class="text-[10px] dark-text-muted text-gray-500"></span>
+              <span id="hostLockLabel" class="text-[10px] text-amber-300/90"></span>
             </div>
             </div>
           </div>
@@ -333,17 +340,17 @@
         <!-- Controls -->
         <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] mb-3 sm:mb-4 transition-colors">
           <div class="flex items-center justify-center gap-3 sm:gap-5 flex-wrap">
-            <button type="button" onclick="shuffleQueue()" id="shuffleBtn" class="p-2 dark-text-muted text-gray-400 hover:text-white transition-colors active:scale-90" title="Acak antrian">
+            <button type="button" onclick="shuffleQueue()" id="shuffleBtn" data-host-control class="p-2 dark-text-muted text-gray-400 hover:text-white transition-colors active:scale-90" title="Acak antrian">
               <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h4l4 8 4-8h4M4 20h4l4-8m0 0l4 8h4"/></svg>
             </button>
-            <button type="button" onclick="playPrevious()" class="p-2 dark-text text-gray-300 hover:text-white transition-colors active:scale-90" title="Previous">
+            <button type="button" onclick="playPrevious()" data-host-control class="p-2 dark-text text-gray-300 hover:text-white transition-colors active:scale-90" title="Previous">
               <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
             </button>
-            <button type="button" onclick="togglePlayPause()" id="playPauseBtn" class="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-full flex items-center justify-center shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all active:scale-95">
+            <button type="button" onclick="togglePlayPause()" id="playPauseBtn" data-host-control class="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-full flex items-center justify-center shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all active:scale-95">
               <svg id="playIcon" class="w-6 h-6 sm:w-7 sm:h-7 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
               <svg id="pauseIcon" class="w-6 h-6 sm:w-7 sm:h-7 text-white hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
             </button>
-            <button type="button" onclick="skipSong()" class="p-2 dark-text text-gray-300 hover:text-white transition-colors active:scale-90" title="Next">
+            <button type="button" onclick="skipSong()" data-host-control class="p-2 dark-text text-gray-300 hover:text-white transition-colors active:scale-90" title="Next">
               <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
             </button>
             <button type="button" onclick="toggleRepeat()" id="repeatBtn" class="p-2 dark-text-muted text-gray-400 hover:text-white transition-colors active:scale-90" title="Repeat">
@@ -363,7 +370,7 @@
         </div>
 
         <!-- Add song -->
-        <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] transition-colors">
+        <div id="addSongPanel" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] transition-colors">
           <h3 class="font-semibold text-sm mb-3 flex items-center gap-2">
             <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
             Add to Queue
@@ -398,8 +405,8 @@
           </div>
           <div id="queueList" class="queue-scroll flex-1 overflow-y-auto p-2 space-y-1 min-h-0"></div>
           <div class="p-2 border-t dark-border border-[#2a2a3e] flex gap-2">
-            <button type="button" onclick="clearQueue()" class="flex-1 py-2 text-xs dark-text-muted text-gray-400 hover:text-red-400 dark-bg-primary bg-[#0f0f1a] rounded-lg transition-colors">Clear All</button>
-            <button type="button" onclick="shuffleQueue()" class="flex-1 py-2 text-xs dark-text-muted text-gray-400 hover:text-white dark-bg-primary bg-[#0f0f1a] rounded-lg transition-colors">Shuffle</button>
+            <button type="button" id="clearQueueBtn" onclick="clearQueue()" class="flex-1 py-2 text-xs dark-text-muted text-gray-400 hover:text-red-400 dark-bg-primary bg-[#0f0f1a] rounded-lg transition-colors">Clear All</button>
+            <button type="button" id="shuffleQueueBtn" onclick="shuffleQueue()" class="flex-1 py-2 text-xs dark-text-muted text-gray-400 hover:text-white dark-bg-primary bg-[#0f0f1a] rounded-lg transition-colors">Shuffle</button>
           </div>
         </div>
 
