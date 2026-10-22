@@ -144,6 +144,7 @@
   body.audio-only .video-container iframe, body.audio-only .video-container #yt-player{position:fixed;left:-9999px;top:0;width:320px;height:180px}
   body.audio-only #audioCover{display:flex}
   #profileGate:not(.hidden),#roleModal:not(.hidden),#profileEditor:not(.hidden){display:flex}
+  #exploreScreen.hidden,#docsScreen.hidden,#playerScreen.hidden{display:none !important}
   @media (max-width:1023px){
     #playerScreen[data-mobile-tab="player"] #tabContentSidebar{display:none}
     #playerScreen[data-mobile-tab="queue"] #tabContentPlayer,
@@ -152,14 +153,19 @@
     #playerScreen[data-mobile-tab="chat"] #tabContentQueue{display:none}
     #playerScreen[data-mobile-tab="queue"] #tabContentSidebar,
     #playerScreen[data-mobile-tab="chat"] #tabContentSidebar{display:flex;width:100%}
+    #exploreScreen{display:flex;flex-direction:column;height:100%;overflow-y:auto;overflow-x:hidden;padding:1rem;gap:1.5rem}
+    #exploreScreen>section{height:auto;overflow:visible;justify-content:flex-start}
+    #headerIcons,#headerMasuk,#headerAvatar{display:none}
+    #headerCreate,#exploreScreen button[onclick="createRoom()"],#exploreScreen button[onclick="joinRoom()"]{min-height:44px}
+    #playerTransport{flex-wrap:wrap;row-gap:0.75rem}
   }
 </style>
 <script src="https://www.youtube.com/iframe_api"></script>
 </head>
 <body class="bg-surface text-on-surface antialiased h-[100dvh] overflow-hidden flex flex-col font-sans">
 
-<header class="w-full h-14 px-6 flex justify-between items-center z-50 shrink-0 bg-surface-container-lowest border-b border-outline-variant/30">
-<div class="flex items-center gap-6">
+<header class="w-full min-h-14 px-3 lg:px-6 flex justify-between items-center z-50 shrink-0 bg-surface-container-lowest border-b border-outline-variant/30">
+<div class="flex flex-1 flex-wrap items-center gap-x-3 gap-y-1 min-w-0">
 <!-- Brand Logo -->
 <a class="text-headline-md font-headline-md font-bold tracking-tight text-on-surface flex items-center gap-2" href="#">
 <span class="w-8 h-8 rounded-xl bg-primary-container/20 border border-primary-container/40 flex items-center justify-center text-primary shadow-[0_0_12px_rgba(142,127,255,0.25)]">
@@ -179,15 +185,15 @@
         </span>
 </div>
 <!-- Navigation Links from Shared Components -->
-<nav class="hidden lg:flex items-center gap-5 ml-4">
+<nav class="flex items-center gap-3 lg:gap-5 lg:ml-4">
 <button type="button" id="navExplore" onclick="showAppPage('explore')" class="text-primary font-semibold border-b-2 border-primary pb-1 font-body-sm text-body-sm">Eksplor</button>
-<button type="button" id="navFitur" onclick="focusCreate()" class="text-on-surface-variant hover:text-on-surface transition-colors pb-1 font-body-sm text-body-sm">Fitur</button>
+<button type="button" id="navFitur" onclick="focusCreate()" class="hidden lg:inline text-on-surface-variant hover:text-on-surface transition-colors pb-1 font-body-sm text-body-sm">Fitur</button>
 <button type="button" id="navDocs" onclick="showAppPage('docs')" class="text-on-surface-variant hover:text-on-surface transition-colors pb-1 font-body-sm text-body-sm">Dokumentasi</button>
 </nav>
 </div>
 <!-- Trailing Actions Cluster -->
 <div class="flex items-center gap-3"><div id="roomInfo" class="items-center gap-2 mr-1" style="display:none"><span id="roomIdDisplay" class="font-label-code text-[11px] text-tertiary px-2 py-1 rounded-full bg-surface-container-high border border-outline-variant/40">—</span><span id="roomIdDisplayMobile" class="hidden"></span><span id="onlineIndicator" class="items-center gap-1 text-emerald-400 text-[11px]" style="display:none"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span id="onlineCount">0 online</span></span><button id="leaveBtn" type="button" onclick="leaveRoom()" class="hidden px-3 py-1 rounded-lg bg-error-container text-on-error-container text-xs font-semibold">Keluar</button></div><button type="button" id="profileBtn" onclick="openProfileEditor()" class="hidden"></button><button type="button" id="themeToggle" onclick="toggleTheme()" class="hidden"><span id="sunIcon" class="hidden"></span><span id="moonIcon"></span></button>
-<div class="flex items-center gap-1 text-on-surface-variant mr-1">
+<div id="headerIcons" class="hidden lg:flex items-center gap-1 text-on-surface-variant mr-1">
 <button class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-container-high/60 transition-colors" title="Audio Buffer Status">
 <span class="material-symbols-outlined text-[19px]">graphic_eq</span>
 </button>
@@ -199,15 +205,15 @@
 <span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full"></span>
 </button>
 </div>
-<button type="button" onclick="openProfileEditor()" class="px-3 py-1.5 rounded-xl text-on-surface font-body-sm text-body-sm font-semibold hover:bg-surface-container-high/60 active:scale-[0.98] transition-all">
+<button type="button" id="headerMasuk" onclick="openProfileEditor()" class="hidden lg:inline px-3 py-1.5 rounded-xl text-on-surface font-body-sm text-body-sm font-semibold hover:bg-surface-container-high/60 active:scale-[0.98] transition-all">
         Masuk
       </button>
-<button type="button" onclick="focusCreate()" class="px-3.5 py-1.5 rounded-xl bg-primary-container text-on-primary-container font-body-sm text-body-sm font-semibold hover:bg-primary-container/90 active:scale-[0.98] shadow-[0_0_16px_rgba(142,127,255,0.35)] transition-all flex items-center gap-1.5">
+<button type="button" id="headerCreate" onclick="focusCreate()" class="min-h-11 px-3.5 py-1.5 rounded-xl bg-primary-container text-on-primary-container font-body-sm text-body-sm font-semibold hover:bg-primary-container/90 active:scale-[0.98] shadow-[0_0_16px_rgba(142,127,255,0.35)] transition-all flex items-center gap-1.5">
 <span class="material-symbols-outlined text-[16px]">add</span>
         Buat Room
       </button>
 <!-- Profile Avatar -->
-<div class="pl-2 border-l border-outline-variant/30 flex items-center">
+<div id="headerAvatar" class="hidden lg:flex pl-2 border-l border-outline-variant/30 items-center">
 <div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/60 ring-1 ring-primary/20">
 <img alt="Avatar profil pengguna" class="w-full h-full object-cover" data-alt="A cinematic, moody portrait of a young Indonesian audio engineer with neon purple rim lighting against a pitch black late night studio interior." src="https://lh3.googleusercontent.com/aida-public/AB6AXuATDJQ5yQqMq024eatkG3NzVgFb_609LAlAK5Bf1HJ2Xt7NIg-Ve0410l3uA9eN9P87mQEyoGnGrrPUI91lyG7kz4B-5HeXOa2FpcRgvm65yfkLRzZ43DNGdfKhAXx4yis57xD3iNoKBt1jf0Tlr6JYME41MiUNcLcy9htc25CAwmYZG4N45VaqVT2HOD4BxZ4IFZDGEH6vB2zMdSeP3vW34WS2UjUXjuaL7r4tmmD5dMrLK6jrHuL5HA2txqy8AHadWwaMCfJIEA"/>
 </div>
@@ -253,11 +259,11 @@
 </div>
 
 <main class="flex-1 min-h-0 overflow-hidden">
-<div id="exploreScreen" class="h-full min-h-0 max-w-[1600px] w-full mx-auto px-6 py-4 grid grid-cols-12 gap-5 overflow-hidden">
+<div id="exploreScreen" class="h-full min-h-0 max-w-[1600px] w-full mx-auto px-4 py-4 lg:px-6 overflow-y-auto lg:overflow-hidden lg:grid lg:grid-cols-12 lg:gap-5">
 <!-- ============================================== -->
 <!-- LEFT COLUMN: Hero & Product Reality (5 cols)   -->
 <!-- ============================================== -->
-<section class="col-span-12 lg:col-span-5 flex flex-col justify-center gap-8 h-full overflow-y-auto py-1">
+<section class="col-span-12 lg:col-span-5 flex flex-col justify-start lg:justify-center gap-8 lg:h-full lg:overflow-y-auto py-1">
 <!-- Top Group: Value Proposition -->
 <div class="space-y-4">
 <!-- Big Prominent Wordmark with glowing violet dot -->
@@ -385,9 +391,9 @@
 <!-- ============================================== -->
 <!-- RIGHT COLUMN: Stacked Functional Cards (7 cols)-->
 <!-- ============================================== -->
-<section class="col-span-12 lg:col-span-7 flex flex-col gap-3 h-full overflow-hidden">
+<section class="col-span-12 lg:col-span-7 flex flex-col gap-3 lg:h-full lg:overflow-hidden">
 <!-- CARD 1: Profile Identity Chip -->
-<div class="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex items-center justify-between shrink-0 shadow-sm">
+<div class="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex flex-wrap items-center justify-between gap-2 shrink-0 shadow-sm">
 <div class="flex items-center gap-3">
 <div class="relative">
 <div class="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/40">
@@ -496,9 +502,9 @@
 </div>
 </div>
 <!-- CARD 4: Live Room List (Lobby Explorer) - Fills remaining height -->
-<div class="flex-1 p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex flex-col min-h-0 shadow-sm overflow-hidden">
+<div class="lg:flex-1 p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex flex-col min-h-64 lg:min-h-0 shadow-sm lg:overflow-hidden">
 <!-- Header & Search Toolbar -->
-<div class="flex items-center justify-between gap-3 mb-2.5 shrink-0">
+<div class="flex flex-wrap items-center justify-between gap-2 mb-2.5 shrink-0">
 <div class="flex items-center gap-2">
 <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
 <h2 class="font-title-sm text-title-sm font-semibold text-on-surface">Room Publik Aktif</h2>
@@ -507,7 +513,7 @@
             </span>
 </div>
 <!-- Micro search box -->
-<div class="relative w-48">
+<div class="relative w-full sm:w-48">
 <input class="w-full h-7 pl-7 pr-2.5 bg-surface-container text-on-surface placeholder:text-outline border border-outline-variant/40 rounded-lg font-body-sm text-[11px] focus:border-primary focus:outline-none" id="roomListSearch" oninput="renderRoomList(state.listedRooms||[])" placeholder="Cari room atau lagu..." type="text"/>
 <span class="material-symbols-outlined absolute left-2 top-1.5 text-[14px] text-outline">search</span>
 </div>
@@ -590,7 +596,7 @@
             </div>
             <span id="totalTime">0:00</span>
           </div>
-          <div class="flex items-center justify-center gap-5 mt-4">
+          <div id="playerTransport" class="flex items-center justify-center gap-5 mt-4">
             <button type="button" id="shuffleBtn" data-host-control onclick="toggleShuffle()" class="text-secondary"><span class="material-symbols-outlined">shuffle</span></button>
             <button type="button" data-host-control onclick="playPrevious()" class="text-on-surface"><span class="material-symbols-outlined text-3xl">skip_previous</span></button>
             <button type="button" id="playPauseBtn" data-host-control onclick="togglePlayPause()" class="w-16 h-16 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-[0_0_24px_rgba(139,124,255,0.4)]">
