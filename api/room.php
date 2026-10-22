@@ -168,6 +168,8 @@ function publicRoom(array $room, bool $includeChat = true): array
         'playNonce' => (int)($room['playNonce'] ?? 0),
         'position' => (float)($room['position'] ?? 0),
         'positionAt' => (int)($room['positionAt'] ?? 0),
+        'positionBy' => (string)($room['positionBy'] ?? ''),
+        'serverNow' => $now,
         'online' => $users,
     ];
     if ($includeChat) {
@@ -246,13 +248,28 @@ function listRooms(string $dir): array
             continue;
         }
         $pub = publicRoom($data, false);
+        $queue = $pub['queue'];
+        $index = (int)$pub['currentIndex'];
+        $song = ($index >= 0 && isset($queue[$index]) && is_array($queue[$index])) ? $queue[$index] : null;
         $item = [
             'code' => $pub['code'],
             'createdBy' => $pub['createdBy'],
+            'hostUserId' => $pub['hostUserId'],
             'createdAt' => $pub['createdAt'],
             'isPrivate' => $pub['isPrivate'],
             'hostOnly' => !empty($pub['hostOnly']),
             'online' => count($pub['online']),
+            'listeners' => array_values(array_map(fn($user) => (string)($user['name'] ?? ''), $pub['online'])),
+            'isPlaying' => !empty($pub['isPlaying']),
+            'position' => (float)$pub['position'],
+            'positionAt' => (int)$pub['positionAt'],
+            'serverNow' => (int)$pub['serverNow'],
+            'nowPlaying' => $song ? [
+                'title' => (string)($song['title'] ?? ''),
+                'source' => (string)($song['source'] ?? ''),
+                'videoId' => (string)($song['videoId'] ?? ''),
+                'duration' => (int)($song['duration'] ?? 0),
+            ] : null,
         ];
         if ($item['online'] === 0 && !empty($data['emptySince'])) {
             $item['emptySince'] = (int)$data['emptySince'];
@@ -503,6 +520,7 @@ function mutate(string $dir, array $input, string $op): array
                     $room['playNonce'] = (int)($room['playNonce'] ?? 0) + 1;
                     $room['position'] = 0;
                     $room['positionAt'] = (int)(microtime(true) * 1000);
+                    $room['positionBy'] = (string)($input['userId'] ?? '');
                     $title = (string)($queue[$index]['title'] ?? 'lagu');
                     appendLog($room, (string)($input['userName'] ?? 'Guest'), 'memutar ' . $title);
                 }
@@ -560,6 +578,7 @@ function saveProgress(string $dir, array $input): array
             assertHost($room, $input);
             $room['position'] = max(0, (float)($input['position'] ?? 0));
             $room['positionAt'] = (int)(microtime(true) * 1000);
+            $room['positionBy'] = (string)($input['userId'] ?? '');
             return $room;
         });
     } catch (RuntimeException $e) {
@@ -569,7 +588,7 @@ function saveProgress(string $dir, array $input): array
     if (!empty($room['_deleted'])) {
         return ['ok' => true, 'deleted' => true];
     }
-    return ['ok' => true];
+    return ['ok' => true, 'serverNow' => (int)(microtime(true) * 1000)];
 }
 
 function saveTransport(string $dir, array $input): array
@@ -587,6 +606,7 @@ function saveTransport(string $dir, array $input): array
             $room['isPlaying'] = !empty($input['isPlaying']);
             $room['position'] = max(0, (float)($input['position'] ?? 0));
             $room['positionAt'] = (int)(microtime(true) * 1000);
+            $room['positionBy'] = (string)($input['userId'] ?? '');
             appendLog($room, (string)($input['userName'] ?? 'Guest'), !empty($input['isPlaying']) ? 'menekan play' : 'menekan pause');
             return $room;
         });

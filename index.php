@@ -1,458 +1,650 @@
 <!DOCTYPE html>
-<html lang="en">
+<html class="dark" lang="id">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-<title>SyncTunes — Collaborative Music Player</title>
-<script src="https://cdn.tailwindcss.com"></script>
-<script src="https://www.youtube.com/iframe_api"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SyncTunes</title>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;600&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet">
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<script id="tailwind-config">
+    tailwind.config = {
+      darkMode: "class",
+      theme: {
+        extend: {
+          "colors": {
+            "on-tertiary-fixed-variant": "#004c69",
+            "on-primary-container": "#24008c",
+            "inverse-on-surface": "#2b3041",
+            "on-surface": "#dee1f8",
+            "on-secondary": "#2f1e7c",
+            "primary-fixed-dim": "#c7bfff",
+            "surface-bright": "#34394a",
+            "on-tertiary-container": "#002d40",
+            "on-primary": "#2a039d",
+            "secondary-container": "#483a96",
+            "on-secondary-fixed": "#190064",
+            "on-surface-variant": "#c8c4d6",
+            "error": "#ffb4ab",
+            "tertiary-container": "#009bd1",
+            "secondary-fixed-dim": "#c8bfff",
+            "on-primary-fixed": "#170065",
+            "on-error": "#690005",
+            "on-primary-fixed-variant": "#422db2",
+            "primary-fixed": "#e4dfff",
+            "surface-container": "#1a1f30",
+            "surface-tint": "#c7bfff",
+            "primary-container": "#8e7fff",
+            "on-background": "#dee1f8",
+            "inverse-primary": "#5a49cb",
+            "surface-variant": "#2f3446",
+            "on-secondary-container": "#b9afff",
+            "inverse-surface": "#dee1f8",
+            "surface-container-highest": "#2f3446",
+            "on-secondary-fixed-variant": "#463893",
+            "surface-container-low": "#161b2b",
+            "tertiary": "#7bd0ff",
+            "tertiary-fixed": "#c4e7ff",
+            "secondary": "#c8bfff",
+            "surface-dim": "#0e1323",
+            "on-tertiary-fixed": "#001e2c",
+            "on-tertiary": "#00354a",
+            "error-container": "#93000a",
+            "on-error-container": "#ffdad6",
+            "primary": "#c7bfff",
+            "outline": "#928f9f",
+            "background": "#0e1323",
+            "tertiary-fixed-dim": "#7bd0ff",
+            "surface": "#0e1323",
+            "outline-variant": "#474554",
+            "surface-container-high": "#24293a",
+            "secondary": "#c8bfff",
+            "surface-container-lowest": "#080d1d"
+          },
+          "borderRadius": {
+            "DEFAULT": "0.25rem",
+            "lg": "0.5rem",
+            "xl": "0.75rem",
+            "2xl": "1rem",
+            "full": "9999px"
+          },
+          "spacing": {
+            "space-sm": "0.75rem",
+            "margin": "1rem",
+            "margin-desktop": "1.5rem",
+            "space-lg": "1.5rem",
+            "space-xl": "2rem",
+            "space-md": "1rem",
+            "space-2xl": "3rem",
+            "gutter": "1rem",
+            "space-xs": "0.5rem",
+            "space-xxs": "0.25rem",
+            "gutter-desktop": "1.25rem"
+          },
+          "fontFamily": {
+            "headline-md": ["Plus Jakarta Sans"],
+            "headline-lg": ["Plus Jakarta Sans"],
+            "body-md": ["Plus Jakarta Sans"],
+            "headline-xl": ["Plus Jakarta Sans"],
+            "label-code": ["JetBrains Mono"],
+            "title-sm": ["Plus Jakarta Sans"],
+            "label-timer": ["JetBrains Mono"],
+            "body-sm": ["Plus Jakarta Sans"],
+            "label-badge": ["Plus Jakarta Sans"]
+          },
+          "fontSize": {
+            "headline-md": ["1.25rem", { "lineHeight": "1.75rem", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "headline-lg": ["1.5rem", { "lineHeight": "2rem", "letterSpacing": "-0.02em", "fontWeight": "600" }],
+            "body-md": ["0.875rem", { "lineHeight": "1.375rem", "letterSpacing": "0em", "fontWeight": "400" }],
+            "headline-xl": ["2rem", { "lineHeight": "2.5rem", "letterSpacing": "-0.03em", "fontWeight": "700" }],
+            "label-code": ["1.125rem", { "lineHeight": "1.5rem", "letterSpacing": "0.15em", "fontWeight": "600" }],
+            "title-sm": ["1rem", { "lineHeight": "1.5rem", "letterSpacing": "-0.01em", "fontWeight": "600" }],
+            "label-timer": ["0.8125rem", { "lineHeight": "1rem", "letterSpacing": "0.02em", "fontWeight": "500" }],
+            "body-sm": ["0.75rem", { "lineHeight": "1.125rem", "letterSpacing": "0.01em", "fontWeight": "400" }],
+            "label-badge": ["0.6875rem", { "lineHeight": "0.875rem", "letterSpacing": "0.06em", "fontWeight": "700" }]
+          }
+        }
+      }
+    }
+  </script>
 <style>
-  .queue-scroll::-webkit-scrollbar { width: 6px; }
-  .queue-scroll::-webkit-scrollbar-track { background: transparent; }
-  .queue-scroll::-webkit-scrollbar-thumb { background: #4a4a6a; border-radius: 3px; }
-
-  .video-container { position: relative; height: clamp(140px, 32vh, 280px); overflow: hidden; border-radius: 12px; background: #000; flex-shrink: 0; }
-  body.audio-only .video-container iframe,
-  body.audio-only .video-container #yt-player { position: fixed; left: -9999px; top: 0; width: 320px; height: 180px; }
-  body.audio-only #audioCover { display: flex; }
-  #profileGate:not(.hidden),
-  #roleModal:not(.hidden),
-  #profileEditor:not(.hidden) { display: flex; }
-
-  @keyframes pulse-dot { 0%,100%{opacity:1} 50%{opacity:.4} }
-  .pulse-dot { animation: pulse-dot 1.5s ease-in-out infinite; }
-
-  @keyframes fadeIn { from{opacity:0; transform:translateY(8px)} to{opacity:1; transform:translateY(0)} }
-  .fade-in { animation: fadeIn .3s ease-out; }
-
-  .no-scrollbar::-webkit-scrollbar { display: none; }
-  .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
-
-  /* ===== MOBILE TAB LAYOUT (below lg) ===== */
-  @media (max-width: 1023px) {
-    #playerScreen[data-mobile-tab="player"] #tabContentPlayer { display: flex; }
-    #playerScreen[data-mobile-tab="player"] #tabContentSidebar { display: none; }
-
-    #playerScreen[data-mobile-tab="queue"] #tabContentPlayer { display: none; }
-    #playerScreen[data-mobile-tab="queue"] #tabContentSidebar { display: flex; }
-    #playerScreen[data-mobile-tab="queue"] #tabContentQueue { display: flex; }
-    #playerScreen[data-mobile-tab="queue"] #tabContentChat { display: none; }
-    #playerScreen[data-mobile-tab="queue"] #sideBottom { display: none; }
-
-    #playerScreen[data-mobile-tab="chat"] #tabContentPlayer { display: none; }
-    #playerScreen[data-mobile-tab="chat"] #tabContentSidebar { display: flex; }
-    #playerScreen[data-mobile-tab="chat"] #tabContentQueue { display: none; }
-    #playerScreen[data-mobile-tab="chat"] #sideBottom { display: flex; }
-    #playerScreen[data-mobile-tab="chat"] #tabContentChat { display: flex; }
+    @keyframes subtlePulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.75; transform: scale(1.04); }
+    }
+    @keyframes eqBar1 { 0%, 100% { height: 6px; } 50% { height: 22px; } }
+    @keyframes eqBar2 { 0%, 100% { height: 18px; } 50% { height: 9px; } }
+    @keyframes eqBar3 { 0%, 100% { height: 12px; } 50% { height: 26px; } }
+    @keyframes eqBar4 { 0%, 100% { height: 24px; } 50% { height: 8px; } }
+    @keyframes eqBar5 { 0%, 100% { height: 10px; } 50% { height: 20px; } }
+    .eq-1 { animation: eqBar1 1.1s ease-in-out infinite; }
+    .eq-2 { animation: eqBar2 0.85s ease-in-out infinite; }
+    .eq-3 { animation: eqBar3 1.25s ease-in-out infinite; }
+    .eq-4 { animation: eqBar4 0.95s ease-in-out infinite; }
+    .eq-5 { animation: eqBar5 1.15s ease-in-out infinite; }
+    
+    /* Custom scrollbar for lobby list */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: #2f3446;
+      border-radius: 4px;
+    }
+    .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+      background: #474554;
+    }
+  </style>
+<style>
+  html,body{height:100dvh;overflow:hidden}
+  .material-symbols-outlined{font-variation-settings:'FILL' 0,'wght' 400,'GRAD' 0,'opsz' 24;vertical-align:middle}
+  body.audio-only .video-container iframe, body.audio-only .video-container #yt-player{position:fixed;left:-9999px;top:0;width:320px;height:180px}
+  body.audio-only #audioCover{display:flex}
+  #profileGate:not(.hidden),#roleModal:not(.hidden),#profileEditor:not(.hidden){display:flex}
+  @media (max-width:1023px){
+    #playerScreen[data-mobile-tab="player"] #tabContentSidebar{display:none}
+    #playerScreen[data-mobile-tab="queue"] #tabContentPlayer,
+    #playerScreen[data-mobile-tab="queue"] #sideBottom{display:none}
+    #playerScreen[data-mobile-tab="chat"] #tabContentPlayer,
+    #playerScreen[data-mobile-tab="chat"] #tabContentQueue{display:none}
+    #playerScreen[data-mobile-tab="queue"] #tabContentSidebar,
+    #playerScreen[data-mobile-tab="chat"] #tabContentSidebar{display:flex;width:100%}
   }
-
-  html, body { height: 100dvh; overflow: hidden; }
-  body { display: flex; flex-direction: column; }
-  main.app-main { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-  #landingScreen:not(.hidden),
-  #playerScreen:not(.hidden) { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
-  #landingGrid { flex: 1; min-height: 0; display: flex; flex-direction: column; }
-  #landingForms { flex-shrink: 0; }
-  @media (max-width: 1023px) {
-    #landingScreen .landing-hero-mark { display: none; }
-    #landingScreen .landing-blurb { display: none; }
-    #landingScreen h1 { font-size: 1.25rem; }
-    #landingTabs { display: flex; }
-    #landingScreen[data-landing-tab="create"] #landingJoin,
-    #landingScreen[data-landing-tab="create"] #landingRooms { display: none; }
-    #landingScreen[data-landing-tab="join"] #landingCreate,
-    #landingScreen[data-landing-tab="join"] #landingRooms { display: none; }
-    #landingScreen[data-landing-tab="rooms"] #landingForms { display: none; }
-    #landingScreen[data-landing-tab="rooms"] #landingRooms,
-    #landingScreen[data-landing-tab="rooms"] #roomListCard { display: flex; flex: 1; min-height: 0; }
-    #landingCreate, #landingJoin { min-height: 0; }
-    #landingScreen .landing-action { padding-top: 0.85rem; padding-bottom: 0.85rem; }
-  }
-  @media (min-width: 1024px) {
-    #landingTabs { display: none; }
-    #landingGrid { display: grid; grid-template-columns: 1fr 400px; gap: 1.5rem; }
-    #landingForms { max-height: none; overflow: visible; }
-  }
-  #roomListCard { min-height: 0; display: flex; flex-direction: column; }
-  #roomList { flex: 1; min-height: 0; overflow-y: auto; }
-  #playerColumns { flex: 1; min-height: 0; }
-  #tabContentPlayer { min-height: 0; }
-  #tabContentSidebar { min-height: 0; }
-  #tabContentQueue, #tabContentChat { min-height: 0; }
-  @media (min-width: 1024px) {
-    header > div,
-    main.app-main { max-width: none; }
-    #playerColumns { display: flex; gap: 1.5rem; flex: 1; height: 100%; min-height: 0; align-items: stretch; }
-    #tabContentPlayer { flex: 1 1 50%; width: auto; max-width: none; min-width: 0; min-height: 0; height: 100%; display: flex; flex-direction: column; overflow: hidden; }
-    #tabContentSidebar { flex: 1 1 50%; width: auto; max-width: none; min-width: 0; height: 100%; display: flex; flex-direction: column; margin-top: 0; min-height: 0; }
-    #tabContentPlayer .video-container { flex: 1 1 auto; height: auto; max-height: none; min-height: 180px; }
-    #tabContentQueue { flex: 1.15; display: flex; max-height: none; min-height: 0; }
-    #sideBottom { display: flex; flex: 1; min-height: 0; gap: 0.75rem; }
-    #tabContentChat { flex: 1; display: flex; max-height: none; margin-top: 0; min-height: 0; }
-    #peopleCard { width: 14rem; flex-shrink: 0; min-height: 0; }
-  }
-  @media (max-width: 1023px) {
-    #playerColumns { display: flex; flex-direction: column; min-height: 0; }
-    #tabContentPlayer { flex: 1; flex-direction: column; overflow-y: auto; }
-    #tabContentSidebar { flex: 1; flex-direction: column; margin-top: 0; }
-    #tabContentQueue, #tabContentChat { flex: 1; max-height: none; }
-  }
-
-  /* ===== LIGHT MODE ===== */
-  body.light { background-color: #f3f4f6 !important; color: #1f2937; }
-  body.light .dark-bg-primary { background-color: #ffffff !important; }
-  body.light .dark-bg-secondary { background-color: #f9fafb !important; }
-  body.light .dark-bg-tertiary { background-color: #e5e7eb !important; }
-  body.light .dark-border { border-color: #e5e7eb !important; }
-  body.light .dark-text { color: #1f2937 !important; }
-  body.light .dark-text-muted { color: #6b7280 !important; }
-  body.light .dark-input { background-color: #ffffff !important; border-color: #d1d5db !important; color: #111827 !important; }
-  body.light .dark-header { background-color: rgba(255,255,255,0.95) !important; }
-  body.light .dark-hover:hover { background-color: #f3f4f6 !important; }
 </style>
+<script src="https://www.youtube.com/iframe_api"></script>
 </head>
-<body class="bg-[#0f0f1a] text-gray-100 h-dvh overflow-hidden font-sans antialiased transition-colors duration-300">
+<body class="bg-surface text-on-surface antialiased h-[100dvh] overflow-hidden flex flex-col font-sans">
 
-<!-- ================= HEADER ================= -->
-<header class="dark-header shrink-0 z-50 bg-[#0f0f1a]/95 backdrop-blur-md border-b dark-border border-[#2a2a3e] transition-colors duration-300">
-  <div class="max-w-7xl mx-auto px-3 sm:px-4 lg:px-6">
-    <div class="flex items-center justify-between h-14 sm:h-16">
-      <div class="flex items-center gap-2">
-        <div class="w-8 h-8 sm:w-9 sm:h-9 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-lg flex items-center justify-center">
-          <svg class="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-        </div>
-        <span class="text-lg sm:text-xl font-bold bg-gradient-to-r from-violet-400 to-fuchsia-400 bg-clip-text text-transparent">SyncTunes</span>
-      </div>
-
-      <div id="roomInfo" class="hidden sm:flex items-center gap-3 text-sm">
-        <span id="roomIdDisplay" class="dark-bg-secondary px-3 py-1 bg-[#1a1a2e] rounded-full dark-text-muted text-gray-400 border dark-border border-[#2a2a3e] transition-colors duration-300">No room</span>
-        <div id="onlineIndicator" class="hidden items-center gap-1.5 text-green-400">
-          <span class="w-2 h-2 bg-green-400 rounded-full pulse-dot"></span>
-          <span id="onlineCount" class="text-xs">0 online</span>
-        </div>
-        <button id="leaveBtn" onclick="leaveRoom()" class="hidden text-xs px-3 py-1 rounded-full bg-red-500/20 text-red-400 border border-red-500/30 hover:bg-red-500/30 transition-colors">Leave</button>
-      </div>
-
-      <div class="flex items-center gap-1">
-        <span id="roomIdDisplayMobile" class="sm:hidden dark-bg-secondary px-2 py-0.5 bg-[#1a1a2e] rounded-full text-xs dark-text-muted text-gray-400 border dark-border border-[#2a2a3e] transition-colors duration-300">—</span>
-        <button type="button" id="profileBtn" onclick="openProfileEditor()" class="hidden text-xs px-3 py-1 rounded-full dark-bg-secondary bg-[#1a1a2e] border dark-border border-[#2a2a3e] dark-text-muted text-gray-300 hover:text-white"></button>
-        <button onclick="toggleTheme()" id="themeToggle" class="p-2 dark-text-muted text-gray-400 hover:text-white transition-colors">
-          <svg id="sunIcon" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 3v1m0 16v1m9-9h-1M4 12H3m15.364 6.364l-.707-.707M6.343 6.343l-.707-.707m12.728 0l-.707.707M6.343 17.657l-.707.707M16 12a4 4 0 11-8 0 4 4 0 018 0z"/></svg>
-          <svg id="moonIcon" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20.354 15.354A9 9 0 018.646 3.646 9.003 9.003 0 0012 21a9.003 9.003 0 008.354-5.646z"/></svg>
-        </button>
-      </div>
-    </div>
-  </div>
+<header class="w-full h-14 px-6 flex justify-between items-center z-50 shrink-0 bg-surface-container-lowest border-b border-outline-variant/30">
+<div class="flex items-center gap-6">
+<!-- Brand Logo -->
+<a class="text-headline-md font-headline-md font-bold tracking-tight text-on-surface flex items-center gap-2" href="#">
+<span class="w-8 h-8 rounded-xl bg-primary-container/20 border border-primary-container/40 flex items-center justify-center text-primary shadow-[0_0_12px_rgba(142,127,255,0.25)]">
+<span class="material-symbols-outlined text-[18px]">graphic_eq</span>
+</span>
+<span>SyncTunes</span>
+</a>
+<!-- Status Badges Cluster -->
+<div class="hidden md:flex items-center gap-2 pl-2 border-l border-outline-variant/40">
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container-high border border-outline-variant/40 text-on-surface-variant font-label-badge text-label-badge">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+          v2.4 Live Sync
+        </span>
+<span class="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-surface-container-low border border-outline-variant/30 text-on-surface-variant font-label-badge text-label-badge">
+<span class="material-symbols-outlined text-[13px] text-tertiary">group</span>
+          <span id="listenerBadge">0 pendengar aktif</span>
+        </span>
+</div>
+<!-- Navigation Links from Shared Components -->
+<nav class="hidden lg:flex items-center gap-5 ml-4">
+<button type="button" id="navExplore" onclick="showAppPage('explore')" class="text-primary font-semibold border-b-2 border-primary pb-1 font-body-sm text-body-sm">Eksplor</button>
+<button type="button" id="navFitur" onclick="focusCreate()" class="text-on-surface-variant hover:text-on-surface transition-colors pb-1 font-body-sm text-body-sm">Fitur</button>
+<button type="button" id="navDocs" onclick="showAppPage('docs')" class="text-on-surface-variant hover:text-on-surface transition-colors pb-1 font-body-sm text-body-sm">Dokumentasi</button>
+</nav>
+</div>
+<!-- Trailing Actions Cluster -->
+<div class="flex items-center gap-3"><div id="roomInfo" class="items-center gap-2 mr-1" style="display:none"><span id="roomIdDisplay" class="font-label-code text-[11px] text-tertiary px-2 py-1 rounded-full bg-surface-container-high border border-outline-variant/40">—</span><span id="roomIdDisplayMobile" class="hidden"></span><span id="onlineIndicator" class="items-center gap-1 text-emerald-400 text-[11px]" style="display:none"><span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span><span id="onlineCount">0 online</span></span><button id="leaveBtn" type="button" onclick="leaveRoom()" class="hidden px-3 py-1 rounded-lg bg-error-container text-on-error-container text-xs font-semibold">Keluar</button></div><button type="button" id="profileBtn" onclick="openProfileEditor()" class="hidden"></button><button type="button" id="themeToggle" onclick="toggleTheme()" class="hidden"><span id="sunIcon" class="hidden"></span><span id="moonIcon"></span></button>
+<div class="flex items-center gap-1 text-on-surface-variant mr-1">
+<button class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-container-high/60 transition-colors" title="Audio Buffer Status">
+<span class="material-symbols-outlined text-[19px]">graphic_eq</span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-container-high/60 transition-colors" title="Bantuan">
+<span class="material-symbols-outlined text-[19px]">help_outline</span>
+</button>
+<button class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-surface-container-high/60 transition-colors relative" title="Notifikasi">
+<span class="material-symbols-outlined text-[19px]">notifications</span>
+<span class="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full"></span>
+</button>
+</div>
+<button type="button" onclick="openProfileEditor()" class="px-3 py-1.5 rounded-xl text-on-surface font-body-sm text-body-sm font-semibold hover:bg-surface-container-high/60 active:scale-[0.98] transition-all">
+        Masuk
+      </button>
+<button type="button" onclick="focusCreate()" class="px-3.5 py-1.5 rounded-xl bg-primary-container text-on-primary-container font-body-sm text-body-sm font-semibold hover:bg-primary-container/90 active:scale-[0.98] shadow-[0_0_16px_rgba(142,127,255,0.35)] transition-all flex items-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">add</span>
+        Buat Room
+      </button>
+<!-- Profile Avatar -->
+<div class="pl-2 border-l border-outline-variant/30 flex items-center">
+<div class="w-8 h-8 rounded-full overflow-hidden border border-outline-variant/60 ring-1 ring-primary/20">
+<img alt="Avatar profil pengguna" class="w-full h-full object-cover" data-alt="A cinematic, moody portrait of a young Indonesian audio engineer with neon purple rim lighting against a pitch black late night studio interior." src="https://lh3.googleusercontent.com/aida-public/AB6AXuATDJQ5yQqMq024eatkG3NzVgFb_609LAlAK5Bf1HJ2Xt7NIg-Ve0410l3uA9eN9P87mQEyoGnGrrPUI91lyG7kz4B-5HeXOa2FpcRgvm65yfkLRzZ43DNGdfKhAXx4yis57xD3iNoKBt1jf0Tlr6JYME41MiUNcLcy9htc25CAwmYZG4N45VaqVT2HOD4BxZ4IFZDGEH6vB2zMdSeP3vW34WS2UjUXjuaL7r4tmmD5dMrLK6jrHuL5HA2txqy8AHadWwaMCfJIEA"/>
+</div>
+</div>
+</div>
 </header>
 
-<main class="app-main max-w-7xl mx-auto w-full px-3 sm:px-4 lg:px-6 py-3">
-
-  <div id="profileGate" class="hidden fixed inset-0 z-[90] bg-black/70 items-center justify-center p-4">
-    <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 w-full max-w-md border dark-border border-[#2a2a3e]">
-      <h2 class="font-semibold mb-2">Nama kamu</h2>
-      <p class="text-sm dark-text-muted text-gray-400 mb-3">Perangkat ini belum punya profil. Nama dipakai di room dan chat.</p>
-      <input id="profileNameInput" type="text" maxlength="20" placeholder="Nama" class="dark-input w-full px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm placeholder-gray-500 mb-3">
-      <button type="button" onclick="saveProfileFromGate()" class="w-full py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 rounded-xl text-sm font-medium text-white">Simpan nama</button>
+<div id="profileGate" class="hidden fixed inset-0 z-[90] bg-black/70 items-center justify-center p-4">
+  <div class="bg-[#161b2b] rounded-2xl p-6 w-full max-w-md border border-white/10">
+    <h2 class="font-semibold mb-1">Nama kamu</h2>
+    <p class="text-sm text-on-surface-variant mb-3">Nama ini akan tampil di daftar pendengar dan antrian lagu room.</p>
+    <input id="profileNameInput" type="text" maxlength="20" placeholder="Nama" class="w-full h-11 px-3 rounded-xl bg-surface-container-lowest border border-outline-variant/40 mb-3 text-sm">
+    <button type="button" onclick="saveProfileFromGate()" class="w-full h-11 rounded-xl bg-[#8e7fff] text-white font-semibold">Simpan nama</button>
+  </div>
+</div>
+<div id="roleModal" class="hidden fixed inset-0 z-[95] bg-black/75 items-center justify-center p-4">
+  <div class="w-full max-w-lg bg-[#161b2b] rounded-2xl p-6 border border-white/10">
+    <h2 class="text-center text-lg font-semibold mb-1">Masuk sebagai</h2>
+    <p class="text-center text-sm text-on-surface-variant mb-5">Pilihan ini hanya mengatur suara di perangkat ini.</p>
+    <div class="grid grid-cols-2 gap-3">
+      <button type="button" onclick="chooseRole('speaker')" class="rounded-2xl bg-surface-container border border-[#8e7fff] px-4 py-6">
+        <span class="material-symbols-outlined text-3xl text-primary">volume_up</span>
+        <span class="block font-semibold mt-2">Speaker</span>
+        <span class="block text-[11px] text-on-surface-variant">suara nyala</span>
+      </button>
+      <button type="button" onclick="chooseRole('requester')" class="rounded-2xl bg-surface-container border border-outline-variant/40 px-4 py-6">
+        <span class="material-symbols-outlined text-3xl">volume_off</span>
+        <span class="block font-semibold mt-2">Requester</span>
+        <span class="block text-[11px] text-on-surface-variant">suara mati</span>
+      </button>
     </div>
   </div>
-  <div id="roleModal" class="hidden fixed inset-0 z-[95] bg-black/75 items-center justify-center p-4">
-    <div class="w-full max-w-md">
-      <h2 class="text-center text-lg font-semibold mb-1">Masuk sebagai</h2>
-      <p class="text-center text-sm text-gray-400 mb-5">Pilihan ini hanya mengatur suara di perangkat ini.</p>
-      <div class="grid grid-cols-2 gap-3">
-        <button type="button" onclick="chooseRole('speaker')" class="rounded-2xl bg-[#1c1c1c] border border-white/10 px-4 py-6 text-white hover:bg-[#2a2a2a]">
-          <svg class="w-8 h-8 mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
-          <span class="block font-semibold">Speaker</span>
-          <span class="block text-[11px] text-gray-400 mt-1">Suara nyala</span>
-        </button>
-        <button type="button" onclick="chooseRole('requester')" class="rounded-2xl bg-[#14532d] border border-green-900 px-4 py-6 text-white hover:bg-[#166534]">
-          <svg class="w-8 h-8 mx-auto mb-2" fill="currentColor" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
-          <span class="block font-semibold">Requester</span>
-          <span class="block text-[11px] text-green-200/80 mt-1">Suara mati</span>
-        </button>
-      </div>
+</div>
+<div id="profileEditor" class="hidden fixed inset-0 z-[80] bg-black/60 items-center justify-center p-4">
+  <div class="bg-[#161b2b] rounded-2xl p-5 w-full max-w-sm border border-white/10">
+    <h2 class="font-semibold mb-3">Ubah profil</h2>
+    <input id="profileEditInput" type="text" maxlength="20" class="w-full h-11 px-3 rounded-xl bg-surface-container-lowest border border-outline-variant/40 mb-3 text-sm">
+    <div class="flex gap-2">
+      <button type="button" onclick="saveProfileEdit()" class="flex-1 py-2 bg-[#8e7fff] text-[#170065] rounded-xl text-sm font-semibold">Simpan</button>
+      <button type="button" onclick="closeProfileEditor()" class="flex-1 py-2 bg-surface-container-high rounded-xl text-sm">Batal</button>
     </div>
   </div>
-  <div id="profileEditor" class="hidden fixed inset-0 z-[80] bg-black/60 items-center justify-center p-4">
-    <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 w-full max-w-sm border dark-border border-[#2a2a3e]">
-      <h2 class="font-semibold mb-3">Ubah profil</h2>
-      <input id="profileEditInput" type="text" maxlength="20" class="dark-input w-full px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm mb-3">
-      <div class="flex gap-2">
-        <button type="button" onclick="saveProfileEdit()" class="flex-1 py-2 bg-violet-600 rounded-xl text-sm text-white">Simpan</button>
-        <button type="button" onclick="closeProfileEditor()" class="flex-1 py-2 bg-[#2a2a3e] rounded-xl text-sm">Batal</button>
-      </div>
-    </div>
-  </div>
+</div>
 
-  <!-- ================= LANDING SCREEN ================= -->
-  <div id="landingScreen" data-landing-tab="create">
-    <div class="text-center mb-3 max-w-5xl mx-auto shrink-0">
-      <div class="landing-hero-mark w-16 h-16 sm:w-20 sm:h-20 mx-auto mb-3 sm:mb-4 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl flex items-center justify-center shadow-lg shadow-violet-500/20">
-        <svg class="w-8 h-8 sm:w-10 sm:h-10 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-      </div>
-      <h1 class="text-2xl sm:text-3xl font-bold mb-1">Listen Together</h1>
-      <p class="landing-blurb dark-text-muted text-gray-400 text-sm">Create a room or join with a code to share music with friends.</p>
-    </div>
-    <div id="landingTabs" class="shrink-0 mb-3 gap-1 rounded-xl bg-[#1a1a2e] border border-[#2a2a3e] p-1">
-      <button type="button" id="landingTabcreate" onclick="switchLandingTab('create')" class="flex-1 py-2.5 rounded-lg text-sm font-medium bg-violet-600 text-white">Buat</button>
-      <button type="button" id="landingTabjoin" onclick="switchLandingTab('join')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-gray-400">Gabung</button>
-      <button type="button" id="landingTabrooms" onclick="switchLandingTab('rooms')" class="flex-1 py-2.5 rounded-lg text-sm font-medium text-gray-400">Room</button>
-    </div>
-
-    <!-- DESKTOP: 2-col layout | MOBILE: stacked -->
-    <div id="landingGrid" class="max-w-5xl mx-auto w-full lg:grid lg:grid-cols-[1fr_400px] lg:gap-6 min-h-0">
-      <!-- Left: forms -->
-      <div id="landingForms" class="space-y-4">
-        <!-- Create Room -->
-        <div id="landingCreate" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300">
-          <h2 class="font-semibold mb-3 flex items-center gap-2">
-            <svg class="w-5 h-5 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Create Room
-          </h2>
-          <input id="createRoomName" type="text" placeholder="Your name (optional)" maxlength="20"
-            class="dark-input input-focus w-full px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm placeholder-gray-500 mb-3 transition-all">
-
-          <div class="flex items-center gap-2 mb-3">
-            <input type="checkbox" id="hostOnlyCheck" checked
-              class="w-4 h-4 rounded border-gray-600 bg-[#0f0f1a] text-violet-600 focus:ring-violet-500 cursor-pointer">
-            <label for="hostOnlyCheck" class="dark-text text-sm text-gray-300 cursor-pointer">Hanya host yang mengatur pemutaran</label>
-          </div>
-
-          <div class="flex items-center gap-2 mb-3">
-            <input type="checkbox" id="privateRoomCheck"
-              onchange="document.getElementById('passwordField').classList.toggle('hidden', !this.checked)"
-              class="w-4 h-4 rounded border-gray-600 bg-[#0f0f1a] text-violet-600 focus:ring-violet-500 cursor-pointer">
-            <label for="privateRoomCheck" class="dark-text text-sm text-gray-300 cursor-pointer">Private room (require password)</label>
-          </div>
-
-          <div id="passwordField" class="hidden mb-3">
-            <input id="roomPassword" type="password" placeholder="Room password" maxlength="20"
-              class="dark-input input-focus w-full px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm placeholder-gray-500 transition-all">
-          </div>
-
-          <button type="button" onclick="createRoom()"
-            class="landing-action w-full py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 rounded-xl font-medium text-sm transition-all active:scale-[0.98] text-white">
-            Create New Room
+<main class="flex-1 min-h-0 overflow-hidden">
+<div id="exploreScreen" class="h-full min-h-0 max-w-[1600px] w-full mx-auto px-6 py-4 grid grid-cols-12 gap-5 overflow-hidden">
+<!-- ============================================== -->
+<!-- LEFT COLUMN: Hero & Product Reality (5 cols)   -->
+<!-- ============================================== -->
+<section class="col-span-12 lg:col-span-5 flex flex-col justify-center gap-8 h-full overflow-y-auto py-1">
+<!-- Top Group: Value Proposition -->
+<div class="space-y-4">
+<!-- Big Prominent Wordmark with glowing violet dot -->
+<div class="flex items-center gap-2">
+<span class="px-2.5 py-1 rounded-md bg-surface-container-high/80 border border-outline-variant/40 font-label-badge text-label-badge text-primary-fixed uppercase tracking-wider">
+            SYNCHRONIZED AUDIO V2
+          </span>
+<span class="flex items-center gap-1 text-label-timer font-label-timer text-on-surface-variant">
+<span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+            Zero Audio Drift
+          </span>
+</div>
+<div class="space-y-2">
+<h1 class="text-headline-xl font-headline-xl text-on-surface tracking-tight leading-tight">
+            Dengar lagu yang sama, di detik yang sama<span class="text-primary inline-block animate-pulse">.</span>
+</h1>
+<p class="text-body-md font-body-md text-on-surface-variant max-w-lg leading-relaxed">
+            Sinkronisasi playback sub-milidetik untuk mendengarkan lagu dan menonton video bareng teman tanpa jeda. Tanpa latensi, tanpa lag transmisi.
+          </p>
+</div>
+<!-- Three Feature Chips / Badges -->
+<div class="flex flex-wrap gap-2 pt-1">
+<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-low border border-outline-variant/40 hover:border-primary/40 transition-colors">
+<span class="w-5 h-5 rounded-md bg-red-500/20 text-red-400 flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">smart_display</span>
+</span>
+<span class="text-on-surface font-body-sm text-body-sm font-medium">YouTube Integration</span>
+</div>
+<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-low border border-outline-variant/40 hover:border-primary/40 transition-colors">
+<span class="w-5 h-5 rounded-md bg-primary-container/20 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">queue_music</span>
+</span>
+<span class="text-on-surface font-body-sm text-body-sm font-medium">Antrian Bersama</span>
+</div>
+<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl bg-surface-container-low border border-outline-variant/40 hover:border-primary/40 transition-colors">
+<span class="w-5 h-5 rounded-md bg-tertiary-container/30 text-tertiary flex items-center justify-center">
+<span class="material-symbols-outlined text-[14px]">devices</span>
+</span>
+<span class="text-on-surface font-body-sm text-body-sm font-medium">Sinkron Antar Perangkat</span>
+</div>
+</div>
+</div>
+<!-- Live Synced Now Playing Widget / Audio Visualizer Box -->
+<div id="liveRoomCard" class="hidden p-4 rounded-2xl bg-surface-container-low border border-outline-variant/50 relative overflow-hidden shadow-2xl backdrop-blur-sm group hover:border-primary/50 transition-all duration-300">
+<!-- Ambient subtle glow behind album -->
+<div class="absolute -top-12 -left-12 w-48 h-48 bg-primary/10 rounded-full blur-3xl pointer-events-none"></div>
+<!-- Header of Widget -->
+<div class="flex items-center justify-between mb-3.5 relative z-10">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary animate-ping"></span>
+<span class="font-label-badge text-label-badge uppercase tracking-wider text-primary font-bold">
+              <span id="liveRoomLabel">Room Sedang Berlangsung</span>
+            </span>
+</div>
+<span id="liveSynced" class="px-2 py-0.5 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-label-timer text-label-timer items-center gap-1" style="display:none">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
+            SYNCED
+          </span>
+</div>
+<!-- Track Info + Album Art Canvas -->
+<div class="flex items-center gap-4 relative z-10 mb-3.5">
+<div class="relative w-16 h-16 rounded-xl overflow-hidden shrink-0 border border-outline-variant/60 shadow-lg">
+<img id="liveCoverImg" alt="" class="hidden w-full h-full object-cover">
+<div id="liveCoverIcon" class="absolute inset-0 bg-surface-container-high flex items-center justify-center">
+<span class="material-symbols-outlined text-primary text-[24px]">music_note</span>
+</div>
+</div>
+<div class="flex-1 min-w-0">
+<div class="flex items-center justify-between">
+<h3 class="font-title-sm text-title-sm text-on-surface font-semibold truncate group-hover:text-primary transition-colors">
+                <span id="liveRoomTitle">Shinunoga E-Wa</span>
+              </h3>
+<!-- Micro Animated Equalizer -->
+<div class="flex items-end gap-1 h-6 px-1.5 py-0.5 rounded bg-surface-container-highest/60">
+<span class="w-1 bg-primary rounded-full eq-1"></span>
+<span class="w-1 bg-primary rounded-full eq-2"></span>
+<span class="w-1 bg-primary rounded-full eq-3"></span>
+<span class="w-1 bg-primary rounded-full eq-4"></span>
+<span class="w-1 bg-primary rounded-full eq-5"></span>
+</div>
+</div>
+<p class="font-body-sm text-body-sm text-on-surface-variant truncate">
+              <span id="liveRoomMeta">Fujii Kaze • HELP EVER HURT NEVER</span>
+            </p>
+<div id="liveSource" class="hidden font-label-badge text-label-badge mt-1 text-on-surface-variant"></div>
+</div>
+</div>
+<!-- Timeline Scrubbing Bar -->
+<div id="liveProgress" class="hidden space-y-1 relative z-10 mb-3">
+<div class="w-full h-1.5 rounded-full bg-surface-container-highest overflow-hidden relative">
+<div id="liveProgressBar" class="h-full bg-gradient-to-r from-primary to-primary-container rounded-full" style="width: 0%;"></div>
+</div>
+<div class="flex justify-between items-center font-label-timer text-label-timer text-on-surface-variant">
+<span id="livePos">0:00</span>
+<span id="liveDur" class="text-tertiary">0:00</span>
+</div>
+</div>
+<!-- Participants Avatar Cluster & Volume Slider -->
+<div class="pt-2 border-t border-outline-variant/30 flex items-center justify-between relative z-10">
+<div class="flex items-center gap-2">
+<div id="liveAvatars" class="hidden flex -space-x-2 overflow-hidden"></div>
+<span class="text-body-sm font-body-sm text-on-surface-variant text-[11px]"><span id="liveRoomPeople">6 teman sinkron</span></span>
+</div>
+<!-- Volume micro slider -->
+<div class="hidden items-center gap-1.5 text-on-surface-variant">
+<span class="material-symbols-outlined text-[15px]">volume_up</span>
+<div class="w-16 h-1 rounded-full bg-surface-container-highest relative">
+<div class="w-11 h-1 rounded-full bg-primary"></div>
+</div>
+</div>
+</div>
+</div>
+<!-- Latency Footnote / Tech Specs Pill -->
+<div class="pt-2">
+<div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-surface-container-lowest border border-outline-variant/30 text-on-surface-variant font-label-timer text-label-timer">
+<span class="material-symbols-outlined text-[14px] text-tertiary">bolt</span>
+<span>WebRTC Mesh Audio Engine</span>
+<span class="text-outline-variant">•</span>
+<span class="text-emerald-400 font-semibold">&lt; 25ms drift</span>
+<span class="text-outline-variant">•</span>
+<span>End-to-End Encrypted</span>
+</div>
+</div>
+</section>
+<!-- ============================================== -->
+<!-- RIGHT COLUMN: Stacked Functional Cards (7 cols)-->
+<!-- ============================================== -->
+<section class="col-span-12 lg:col-span-7 flex flex-col gap-3 h-full overflow-hidden">
+<!-- CARD 1: Profile Identity Chip -->
+<div class="p-3 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex items-center justify-between shrink-0 shadow-sm">
+<div class="flex items-center gap-3">
+<div class="relative">
+<div class="w-10 h-10 rounded-full overflow-hidden ring-2 ring-primary/40">
+<img alt="Avatar Rian Pratama" class="w-full h-full object-cover" data-alt="Close up photographic avatar of a creative designer with glasses and subtle warm rim lighting." src="https://lh3.googleusercontent.com/aida-public/AB6AXuA-DUZpqpJtCbTRVyUnrUCG8CHSk6fMaqgGKXJvesYX8Ykzg4DsnM2-Y1YE5XEsBGJRu9znFs-qkoOSKOe7NHXOPtGdSH56puaSlzjXr8vUxFFFYow-4yF4v17mfF2Ykt5W46kpmH62T-9cIRLxS3pFKsSmMQFCoHjsKTGudLGbVSvh1RCkFT7j44Vnxgs57RVxu2KdqbHpfkZOxjHepkYpGwn1_zOvx7i2JFjDi6wLeLwf1ajcH67ePWwN1-zmrI35RlXhZddIdQ"/>
+</div>
+<span class="absolute bottom-0 right-0 w-3 h-3 bg-emerald-400 border-2 border-surface-container-low rounded-full"></span>
+</div>
+<div>
+<div class="flex items-center gap-2">
+<label class="text-on-surface-variant font-body-sm text-[11px] uppercase tracking-wider">Identitas Kamu</label>
+<span id="hostBadge" class="hidden font-label-badge text-[10px] px-1.5 py-0.2 rounded bg-primary-container/20 text-primary font-semibold">Tuan Rumah</span>
+</div>
+<div class="flex items-center gap-1.5 mt-0.5">
+<input id="profileNameLive" onblur="saveExploreName()" maxlength="20" class="bg-transparent border-0 p-0 text-on-surface font-title-sm text-title-sm font-semibold focus:ring-0 focus:outline-none w-36 hover:underline cursor-pointer" type="text" value="Rian Pratama"/>
+<span class="material-symbols-outlined text-[15px] text-outline cursor-pointer hover:text-on-surface">edit</span>
+</div>
+</div>
+</div>
+<div class="flex items-center gap-3">
+<div class="text-right">
+<span class="text-label-timer font-label-timer text-emerald-400 flex items-center gap-1 justify-end">
+<span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span> Online
+            </span>
+<span class="text-on-surface-variant text-[11px] font-body-sm">ID: <span id="profileUserId">—</span></span>
+</div>
+<button type="button" onclick="openProfileEditor()" class="px-2.5 py-1 rounded-xl bg-surface-container-high border border-outline-variant/40 text-on-surface-variant font-body-sm text-[12px] hover:text-on-surface hover:border-outline transition-colors">
+            Ganti Akun
           </button>
-        </div>
+</div>
+</div>
+<!-- CARDS 2 & 3: Buat Room + Gabung Room (Compact Side-by-Side Flex Grid) -->
+<div class="grid grid-cols-1 md:grid-cols-12 gap-3 shrink-0">
+<!-- CARD 2: Buat Room (7 cols) -->
+<div id="buatRoomCard" class="md:col-span-7 p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex flex-col justify-between shadow-sm">
+<div>
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-1.5">
+<span class="w-6 h-6 rounded-lg bg-primary-container/20 text-primary flex items-center justify-center">
+<span class="material-symbols-outlined text-[15px]">add_circle</span>
+</span>
+<h2 class="font-title-sm text-title-sm font-semibold text-on-surface">Buat Room Baru</h2>
+</div>
+<span class="text-label-badge font-label-badge text-on-surface-variant bg-surface-container-high px-1.5 py-0.5 rounded">HOST MODE</span>
+</div>
+<!-- Form fields -->
+<div class="space-y-2">
+<div>
+<label class="block font-body-sm text-[11px] text-on-surface-variant mb-1 font-medium">Nama Room</label>
+<div class="relative">
+<input class="w-full h-8 px-2.5 bg-surface-container text-on-surface placeholder:text-outline border border-outline-variant/40 rounded-xl font-body-sm text-body-sm focus:border-primary focus:ring-1 focus:ring-primary/40 focus:outline-none transition-all" id="createRoomName" placeholder="e.g. Late Night Lofi Study" type="text"/>
+<span class="material-symbols-outlined absolute right-2.5 top-2 text-[15px] text-outline">headphones</span>
+</div>
+</div>
+<!-- Checkbox Options -->
+<div class="pt-0.5 space-y-1.5">
+<label class="flex items-center gap-2 cursor-pointer group">
+<input id="hostOnlyCheck" checked class="w-3.5 h-3.5 rounded bg-surface-container border-outline-variant text-primary focus:ring-0 focus:ring-offset-0" type="checkbox"/>
+<span class="font-body-sm text-[12px] text-on-surface-variant group-hover:text-on-surface transition-colors">
+                    Hanya host yang dapat mengatur antrian lagu
+                  </span>
+</label>
+<div class="flex items-center justify-between">
+<label class="flex items-center gap-2 cursor-pointer group">
+<input class="w-3.5 h-3.5 rounded bg-surface-container border-outline-variant text-primary focus:ring-0 focus:ring-offset-0" id="privateRoomCheck" type="checkbox"/>
+<span class="font-body-sm text-[12px] text-on-surface-variant group-hover:text-on-surface transition-colors">
+                      Private Room (Kunci PIN)
+                    </span>
+</label>
+<input class="w-20 h-6 px-1.5 text-center bg-surface-container text-on-surface border border-outline-variant/30 rounded-lg font-label-code text-[11px] focus:border-primary focus:outline-none" maxlength="4" id="roomPassword" placeholder="PIN 4-Digit" type="text"/>
+</div>
+</div>
+</div>
+</div>
+<!-- Submit Button -->
+<button type="button" onclick="createRoom()" class="mt-3 w-full h-8 px-4 rounded-xl bg-primary-container text-on-primary-container font-body-sm text-body-sm font-semibold hover:bg-primary-container/90 active:scale-[0.98] shadow-[0_0_12px_rgba(142,127,255,0.3)] transition-all flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[16px]">play_arrow</span>
+<span>Buat Room Sekarang</span>
+</button>
+</div>
+<!-- CARD 3: Gabung Room (5 cols) -->
+<div class="md:col-span-5 p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex flex-col justify-between shadow-sm">
+<div>
+<div class="flex items-center justify-between mb-2">
+<div class="flex items-center gap-1.5">
+<span class="w-6 h-6 rounded-lg bg-tertiary-container/30 text-tertiary flex items-center justify-center">
+<span class="material-symbols-outlined text-[15px]">key</span>
+</span>
+<h2 class="font-title-sm text-title-sm font-semibold text-on-surface">Gabung Cepat</h2>
+</div>
+<span class="font-label-badge text-label-badge text-emerald-400">INSTANT</span>
+</div>
+<p class="font-body-sm text-[11px] text-on-surface-variant mb-2">
+              Punya kode undangan teman? Masukkan di sini:
+            </p>
+<!-- 6-character monospace segmented input style -->
+<div class="relative mb-2">
+<input class="w-full h-8 px-3 bg-surface-container text-primary font-label-code text-label-code tracking-widest text-center uppercase border border-outline-variant/50 rounded-xl focus:border-primary focus:ring-1 focus:ring-primary/40 focus:outline-none transition-all" id="joinRoomCode" maxlength="6" placeholder="SYN904" type="text" value=""/>
+</div>
+<p class="font-body-sm text-[10px] text-outline text-center">Format: [3 HURUF]-[3 ANGKA]</p>
+</div>
+<!-- Gabung Button -->
+<button type="button" onclick="joinRoom()" class="mt-3 w-full h-8 px-3 rounded-xl bg-surface-container-high border border-outline-variant text-on-surface font-body-sm text-body-sm font-semibold hover:bg-surface-bright active:scale-[0.98] hover:border-primary/50 transition-all flex items-center justify-center gap-1.5">
+<span class="material-symbols-outlined text-[16px] text-tertiary">login</span>
+<span>Gabung Room</span>
+</button>
+</div>
+</div>
+<!-- CARD 4: Live Room List (Lobby Explorer) - Fills remaining height -->
+<div class="flex-1 p-3.5 rounded-2xl bg-surface-container-low border border-outline-variant/40 flex flex-col min-h-0 shadow-sm overflow-hidden">
+<!-- Header & Search Toolbar -->
+<div class="flex items-center justify-between gap-3 mb-2.5 shrink-0">
+<div class="flex items-center gap-2">
+<span class="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-pulse"></span>
+<h2 class="font-title-sm text-title-sm font-semibold text-on-surface">Room Publik Aktif</h2>
+<span class="px-2 py-0.5 rounded-full bg-surface-container-highest text-on-surface-variant font-label-badge text-label-badge">
+              <span id="roomListCount">0 ROOM</span>
+            </span>
+</div>
+<!-- Micro search box -->
+<div class="relative w-48">
+<input class="w-full h-7 pl-7 pr-2.5 bg-surface-container text-on-surface placeholder:text-outline border border-outline-variant/40 rounded-lg font-body-sm text-[11px] focus:border-primary focus:outline-none" id="roomListSearch" oninput="renderRoomList(state.listedRooms||[])" placeholder="Cari room atau lagu..." type="text"/>
+<span class="material-symbols-outlined absolute left-2 top-1.5 text-[14px] text-outline">search</span>
+</div>
+</div>
+<div id="roomList" class="flex-1 overflow-y-auto space-y-1.5 pr-1 custom-scrollbar"></div>
+<input id="joinUserName" class="hidden">
+<!-- Footer / Micro room stats -->
+<div class="pt-2 mt-1 border-t border-outline-variant/20 flex items-center justify-between text-on-surface-variant font-body-sm text-[11px] shrink-0">
+<div class="flex items-center gap-2">
+<span class="w-2 h-2 rounded-full bg-primary"></span>
+<span id="fbStatus">Semua room berjalan pada master clock UTC-sync</span>
+</div>
+<button type="button" onclick="refreshRoomList()" class="text-tertiary hover:underline cursor-pointer flex items-center gap-1">
+            Refresh Lobby
+            <span class="material-symbols-outlined text-[13px]">refresh</span>
+</button>
+</div>
+</div>
+</section>
+</div>
 
-        <!-- Join Room -->
-        <div id="landingJoin" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300">
-          <h2 class="font-semibold mb-3 flex items-center gap-2">
-            <svg class="w-5 h-5 text-fuchsia-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"/></svg>
-            Join by Code
-          </h2>
-          <div class="flex gap-2 mb-3">
-            <input id="joinRoomCode" type="text" placeholder="CODE" maxlength="6"
-              class="dark-input input-focus flex-1 px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm placeholder-gray-500 uppercase tracking-widest text-center font-mono transition-all">
-            <input id="joinUserName" type="text" placeholder="Your name" maxlength="20"
-              class="dark-input input-focus flex-1 px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm placeholder-gray-500 transition-all">
-          </div>
-          <button type="button" onclick="joinRoom()"
-            class="landing-action w-full py-2.5 dark-bg-tertiary bg-[#2a2a3e] hover:bg-[#3a3a4e] rounded-xl font-medium text-sm transition-all active:scale-[0.98]">
-            Join Room
-          </button>
-        </div>
+<div id="docsScreen" class="hidden h-full overflow-y-auto bg-surface p-6 md:p-10">
+    <div class="max-w-5xl mx-auto flex flex-col gap-8 pb-16">
+      <div>
+        <span class="px-2.5 py-1 rounded-md bg-surface-container-high text-primary text-[11px] font-bold tracking-wider border border-outline-variant/30">PANDUAN SISTEM</span>
+        <h1 class="text-3xl font-bold mt-3">Dokumentasi</h1>
+        <p class="text-sm text-on-surface-variant max-w-2xl mt-2">Cara mengelola room, peran suara, dan batas sinkron antar perangkat.</p>
       </div>
-
-      <!-- Right: room list -->
-      <div id="landingRooms" class="mt-3 lg:mt-0 min-h-0 flex flex-col">
-        <div id="roomListCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-5 sm:p-6 border dark-border border-[#2a2a3e] transition-colors duration-300 flex-1 min-h-0">
-          <div class="flex items-center justify-between mb-3">
-            <h2 class="font-semibold flex items-center gap-2">
-              <svg class="w-5 h-5 text-green-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"/></svg>
-              Available Rooms
-            </h2>
-            <span id="roomListCount" class="text-xs dark-text-muted text-gray-500">0</span>
-          </div>
-          <div id="roomList" class="space-y-2 overflow-y-auto queue-scroll pr-1 min-h-0">
-            <p class="dark-text-muted text-gray-500 text-sm text-center py-6">Loading rooms...</p>
-          </div>
-          <div id="fbStatus" class="mt-3 pt-3 border-t dark-border border-[#2a2a3e] text-[10px] dark-text-muted text-gray-500"></div>
-        </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <article class="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-6"><p class="text-xs text-primary font-mono mb-1">MODUL 01</p><h3 class="font-semibold text-lg mb-2">1. Buat Room</h3><p class="text-sm text-on-surface-variant">Dari Eksplor, centang kunci host bila hanya kamu yang boleh play, pause, dan seek. Room privat butuh PIN.</p></article>
+        <article class="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-6"><p class="text-xs text-primary font-mono mb-1">MODUL 02</p><h3 class="font-semibold text-lg mb-2">2. Gabung dengan Kode</h3><p class="text-sm text-on-surface-variant">Kode room 6 karakter. Tempel di Gabung Cepat atau buka room publik dari daftar.</p></article>
+        <article class="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-6"><p class="text-xs text-primary font-mono mb-1">MODUL 03</p><h3 class="font-semibold text-lg mb-2">3. Speaker dan Requester</h3><p class="text-sm text-on-surface-variant">Speaker memutar suara di perangkat ini. Requester tetap ikut antrian dan chat, suaranya mati.</p></article>
+        <article class="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-6"><p class="text-xs text-primary font-mono mb-1">MODUL 04</p><h3 class="font-semibold text-lg mb-2">4. Hanya Host</h3><p class="text-sm text-on-surface-variant">Jika kunci host aktif, hanya pembuat room yang mengubah play, pause, seek, dan antrian.</p></article>
+        <article class="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-6"><p class="text-xs text-primary font-mono mb-1">MODUL 05</p><h3 class="font-semibold text-lg mb-2">5. Sinkron YouTube</h3><p class="text-sm text-on-surface-variant">Posisi YouTube mengikuti jam server. Perangkat lain menyesuaikan jika selisihnya lebih dari seperempat detik.</p></article>
+        <article class="bg-surface-container-low border border-outline-variant/60 rounded-2xl p-6"><p class="text-xs text-primary font-mono mb-1">MODUL 06</p><h3 class="font-semibold text-lg mb-2">6. Spotify</h3><p class="text-sm text-on-surface-variant">Spotify tampil sebagai embed. Posisinya tidak bisa di-seek dari luar, jadi kesamaan detik hanya untuk YouTube.</p></article>
       </div>
     </div>
-
-    <p class="text-center text-xs dark-text-muted text-gray-600 mt-3 shrink-0">Powered by YouTube &amp; Spotify • Antrian tersinkron di server lokal</p>
   </div>
 
-  <!-- ================= PLAYER SCREEN ================= -->
-  <div id="playerScreen" data-mobile-tab="player" class="hidden">
-
-    <!-- Mobile tab bar -->
-    <div class="lg:hidden shrink-0 dark-bg-secondary bg-[#1a1a2e] rounded-xl p-1 mb-3 flex gap-1 border dark-border border-[#2a2a3e] transition-colors">
-      <button type="button" onclick="switchMobileTab('player')" data-tab-btn="player"
-        class="flex-1 py-2 rounded-lg text-xs font-medium transition-colors">▶ Player</button>
-      <button type="button" onclick="switchMobileTab('queue')" data-tab-btn="queue"
-        class="flex-1 py-2 rounded-lg text-xs font-medium transition-colors">☰ Queue</button>
-      <button type="button" onclick="switchMobileTab('chat')" data-tab-btn="chat"
-        class="flex-1 py-2 rounded-lg text-xs font-medium transition-colors">💬 Chat</button>
+  <div id="playerScreen" data-mobile-tab="player" class="hidden h-full flex flex-col overflow-hidden">
+    <div class="lg:hidden shrink-0 flex gap-1 p-2 bg-surface-container-low">
+      <button type="button" onclick="switchMobileTab('player')" data-tab-btn="player" class="flex-1 py-2 rounded-lg text-xs font-medium">Player</button>
+      <button type="button" onclick="switchMobileTab('queue')" data-tab-btn="queue" class="flex-1 py-2 rounded-lg text-xs font-medium">Antrian</button>
+      <button type="button" onclick="switchMobileTab('chat')" data-tab-btn="chat" class="flex-1 py-2 rounded-lg text-xs font-medium">Chat</button>
     </div>
-
-    <div id="playerColumns" class="min-h-0">
-      <!-- LEFT: Player -->
-      <div id="tabContentPlayer" class="min-w-0 min-h-0">
-        <!-- Video player -->
-        <div class="video-container bg-black mb-3 sm:mb-4 relative">
+    <div id="playerColumns" class="flex-1 grid min-h-0 overflow-hidden lg:grid-cols-[14rem_minmax(0,1fr)_18rem]">
+      <aside id="peopleCard" class="bg-surface-container-low border-r border-outline-variant hidden lg:flex flex-col min-h-0 min-w-0">
+        <h2 class="p-4 font-semibold text-sm flex items-center gap-2"><span class="material-symbols-outlined text-primary">group</span>Orang online</h2>
+        <p id="hostLockLabel" class="px-4 text-[11px] text-amber-200/90"></p>
+        <div id="peopleList" class="flex-1 overflow-y-auto p-3 space-y-1 min-h-0"></div>
+      </aside>
+      <div id="tabContentPlayer" class="flex flex-col min-w-0 min-h-0 bg-surface overflow-y-auto p-4">
+        <div class="video-container relative rounded-2xl overflow-hidden bg-black min-h-[180px] flex-1">
           <div id="yt-player"></div>
-          <div id="audioCover" class="absolute inset-0 z-30 hidden flex-col items-center justify-center bg-[#0f0f1a] px-6 text-center">
-            <div id="audioCoverArt" class="w-36 h-36 rounded-2xl mb-4 flex items-center justify-center overflow-hidden bg-gradient-to-br from-violet-600/30 to-fuchsia-600/20 border border-white/10">
+          <div id="audioCover" class="absolute inset-0 z-30 hidden flex-col items-center justify-center bg-surface">
+            <div id="audioCoverArt" class="w-36 h-36 rounded-2xl mb-4 overflow-hidden flex items-center justify-center bg-surface-container-high">
               <img id="audioCoverImg" alt="" class="hidden w-full h-full object-cover">
-              <svg id="audioCoverIcon" class="w-14 h-14 text-violet-300/80" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
+              <span id="audioCoverIcon" class="material-symbols-outlined text-5xl text-primary">music_note</span>
             </div>
-            <p id="audioCoverTitle" class="text-sm font-medium text-gray-200 truncate max-w-full">Belum ada lagu</p>
-            <p id="audioCoverHint" class="text-xs text-gray-500 mt-1">Tempel tautan YouTube atau Spotify untuk mulai</p>
+            <p id="audioCoverTitle" class="text-sm">Belum ada lagu</p>
+            <p id="audioCoverHint" class="text-xs text-on-surface-variant mt-1">Tempel tautan YouTube atau Spotify</p>
           </div>
-          <div id="noSongOverlay" class="dark-bg-primary absolute inset-0 flex flex-col items-center justify-center bg-[#0f0f1a] z-10 transition-colors duration-300">
-            <svg class="w-16 h-16 dark-text-muted text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3"/></svg>
-            <p class="dark-text-muted text-gray-500 text-sm">No song playing</p>
-            <p class="text-gray-600 text-xs mt-1">Add a song to the queue to start</p>
-          </div>
-          <div id="spotifyOverlay" class="dark-bg-primary absolute inset-0 hidden z-20 bg-[#0f0f1a] flex flex-col items-center justify-center transition-colors duration-300">
-            <div class="w-full max-w-md mx-auto px-4"><div id="spotifyEmbedContainer"></div></div>
-          </div>
+          <div id="noSongOverlay" class="absolute inset-0 z-10 flex items-center justify-center text-sm text-on-surface-variant">Belum ada lagu</div>
+          <div id="spotifyOverlay" class="absolute inset-0 z-20 hidden bg-surface p-4"><div id="spotifyEmbedContainer" class="w-full max-w-md mx-auto"></div></div>
         </div>
-
-        <!-- Now playing -->
-        <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] mb-3 sm:mb-4 transition-colors">
-          <div class="flex items-start gap-3">
-            <div id="nowPlayingArt" class="w-12 h-12 sm:w-14 sm:h-14 rounded-xl bg-gradient-to-br from-violet-600 to-fuchsia-600 flex items-center justify-center flex-shrink-0">
-              <svg class="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 3v10.55c-.59-.34-1.27-.55-2-.55-2.21 0-4 1.79-4 4s1.79 4 4 4 4-1.79 4-4V7h4V3h-6z"/></svg>
-            </div>
-            <div class="flex-1 min-w-0">
-              <h3 id="nowPlayingTitle" class="font-semibold text-sm sm:text-base truncate">Not playing</h3>
-              <p id="nowPlayingArtist" class="dark-text-muted text-gray-400 text-xs sm:text-sm truncate">—</p>
-            <div class="flex items-center gap-2 mt-1">
-              <div class="flex rounded-full border dark-border border-[#2a2a3e] overflow-hidden text-[10px]">
-                <button type="button" id="modeAudioBtn" onclick="setPlayerMode('audio')" class="px-2.5 py-1">Audio</button>
-                <button type="button" id="modeVideoBtn" onclick="setPlayerMode('video')" class="px-2.5 py-1">Video</button>
-              </div>
-              <span id="nowPlayingSource" class="dark-bg-tertiary text-[10px] px-1.5 py-0.5 rounded bg-[#2a2a3e] dark-text-muted text-gray-400">—</span>
-              <span id="nowPlayingAddedBy" class="text-[10px] dark-text-muted text-gray-500"></span>
-              <span id="hostLockLabel" class="text-[10px] text-amber-300/90"></span>
-            </div>
-            </div>
+        <div class="mt-4 text-center">
+          <div class="flex justify-center gap-2 mb-3 text-[11px]">
+            <button type="button" id="modeAudioBtn" onclick="setPlayerMode('audio')" class="px-3 py-1 rounded-full border border-primary/30">Audio</button>
+            <button type="button" id="modeVideoBtn" onclick="setPlayerMode('video')" class="px-3 py-1 rounded-full border border-outline-variant">Video</button>
           </div>
-          <div class="mt-3">
-            <div class="flex items-center gap-2 text-[10px] sm:text-xs dark-text-muted text-gray-500 mb-1">
-              <span id="currentTime">0:00</span>
-              <div class="flex-1 h-1 dark-bg-tertiary bg-[#2a2a3e] rounded-full overflow-hidden cursor-pointer" id="progressBarContainer">
-                <div id="progressBar" class="h-full bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full transition-all duration-200" style="width: 0%"></div>
-              </div>
-              <span id="totalTime">0:00</span>
-            </div>
-          </div>
+          <h3 id="nowPlayingTitle" class="text-xl font-semibold">Tidak ada lagu</h3>
+          <p id="nowPlayingArtist" class="text-sm text-secondary">—</p>
+          <p class="text-[11px] text-on-surface-variant mt-1"><span id="nowPlayingSource">—</span> <span id="nowPlayingAddedBy"></span></p>
         </div>
-
-        <!-- Controls -->
-        <div class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] mb-3 sm:mb-4 transition-colors">
-          <div class="flex items-center justify-center gap-3 sm:gap-5 flex-wrap">
-            <button type="button" onclick="shuffleQueue()" id="shuffleBtn" data-host-control class="p-2 dark-text-muted text-gray-400 hover:text-white transition-colors active:scale-90" title="Acak antrian">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4h4l4 8 4-8h4M4 20h4l4-8m0 0l4 8h4"/></svg>
+        <div class="mt-4 max-w-xl mx-auto w-full">
+          <div class="flex items-center gap-2 text-[11px] font-mono text-secondary">
+            <span id="currentTime">0:00</span>
+            <div id="progressBarContainer" class="flex-1 h-1.5 bg-surface-container-high rounded-full overflow-hidden cursor-pointer">
+              <div id="progressBar" class="h-full bg-primary rounded-full" style="width:0%"></div>
+            </div>
+            <span id="totalTime">0:00</span>
+          </div>
+          <div class="flex items-center justify-center gap-5 mt-4">
+            <button type="button" id="shuffleBtn" data-host-control onclick="toggleShuffle()" class="text-secondary"><span class="material-symbols-outlined">shuffle</span></button>
+            <button type="button" data-host-control onclick="playPrevious()" class="text-on-surface"><span class="material-symbols-outlined text-3xl">skip_previous</span></button>
+            <button type="button" id="playPauseBtn" data-host-control onclick="togglePlayPause()" class="w-16 h-16 rounded-full bg-primary text-on-primary flex items-center justify-center shadow-[0_0_24px_rgba(139,124,255,0.4)]">
+              <span id="playIcon" class="material-symbols-outlined text-3xl">play_arrow</span>
+              <span id="pauseIcon" class="material-symbols-outlined text-3xl hidden">pause</span>
             </button>
-            <button type="button" onclick="playPrevious()" data-host-control class="p-2 dark-text text-gray-300 hover:text-white transition-colors active:scale-90" title="Previous">
-              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 6h2v12H6zm3.5 6l8.5 6V6z"/></svg>
-            </button>
-            <button type="button" onclick="togglePlayPause()" id="playPauseBtn" data-host-control class="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-full flex items-center justify-center shadow-lg shadow-violet-500/30 hover:shadow-violet-500/50 transition-all active:scale-95">
-              <svg id="playIcon" class="w-6 h-6 sm:w-7 sm:h-7 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-              <svg id="pauseIcon" class="w-6 h-6 sm:w-7 sm:h-7 text-white hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
-            </button>
-            <button type="button" onclick="skipSong()" data-host-control class="p-2 dark-text text-gray-300 hover:text-white transition-colors active:scale-90" title="Next">
-              <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 24 24"><path d="M6 18l8.5-6L6 6v12zM16 6v12h2V6h-2z"/></svg>
-            </button>
-            <button type="button" onclick="toggleRepeat()" id="repeatBtn" class="p-2 dark-text-muted text-gray-400 hover:text-white transition-colors active:scale-90" title="Repeat">
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-            </button>
-            <button type="button" onclick="toggleMute()" id="muteBtn" class="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium bg-[#1a1a2e] border border-[#3a3a4e] text-gray-300 hover:text-white" title="Mute perangkat ini">
-              <svg id="muteIconOff" class="w-4 h-4" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02z"/></svg>
-              <svg id="muteIconOn" class="w-4 h-4 hidden" fill="currentColor" viewBox="0 0 24 24"><path d="M16.5 12c0-1.77-1.02-3.29-2.5-4.03v2.21l2.45 2.45c.03-.2.05-.41.05-.63zm2.5 0c0 .94-.2 1.82-.54 2.64l1.51 1.51C20.63 14.91 21 13.5 21 12c0-4.28-2.99-7.86-7-8.77v2.06c2.89.86 5 3.54 5 6.71zM4.27 3L3 4.27 7.73 9H3v6h4l5 5v-6.73l4.25 4.25c-.67.52-1.42.93-2.25 1.18v2.06c1.38-.31 2.63-.95 3.69-1.81L19.73 21 21 19.73l-9-9L4.27 3zM12 4L9.91 6.09 12 8.18V4z"/></svg>
+            <button type="button" data-host-control onclick="skipSong()"><span class="material-symbols-outlined text-3xl">skip_next</span></button>
+            <button type="button" id="repeatBtn" onclick="toggleRepeat()" class="text-secondary"><span class="material-symbols-outlined">repeat</span></button>
+            <button type="button" id="muteBtn" onclick="toggleMute()" class="inline-flex items-center gap-1 px-3 py-1.5 rounded-full text-xs bg-surface-container border border-outline-variant">
+              <span id="muteIconOff" class="material-symbols-outlined text-base">volume_up</span>
+              <span id="muteIconOn" class="material-symbols-outlined text-base hidden">volume_off</span>
               <span id="muteLabel">Mute</span>
             </button>
-            <div class="hidden sm:flex items-center gap-2 ml-2">
-              <svg class="w-4 h-4 dark-text-muted text-gray-400" fill="currentColor" viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/></svg>
-              <input type="range" min="0" max="100" value="80" oninput="setVolume(this.value)"
-                class="w-16 sm:w-20 h-1 dark-bg-tertiary bg-[#2a2a3e] rounded-full appearance-none cursor-pointer accent-violet-500">
-            </div>
+            <input type="range" min="0" max="100" value="80" oninput="setVolume(this.value)" class="w-20 accent-[#8e7fff]">
           </div>
         </div>
-
-        <!-- Add song -->
-        <div id="addSongPanel" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl p-3 sm:p-4 border dark-border border-[#2a2a3e] transition-colors">
-          <h3 class="font-semibold text-sm mb-3 flex items-center gap-2">
-            <svg class="w-4 h-4 text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
-            Add to Queue
-          </h3>
+      </div>
+      <aside id="tabContentSidebar" class="w-full bg-surface-container-low border-l border-outline-variant flex flex-col min-h-0 min-w-0">
+        <div id="tabContentQueue" class="flex-1 flex flex-col min-h-0 p-4 gap-2">
+          <div class="flex items-center justify-between">
+            <h2 class="font-semibold text-sm">Antrian</h2>
+            <span id="queueCount" class="text-xs text-secondary">0</span>
+          </div>
+          <input id="queueSearch" oninput="updateQueueUI()" placeholder="Cari judul..." class="w-full bg-surface-container border border-outline-variant rounded-xl px-3 py-2 text-sm">
+          <div id="addSongPanel" class="flex gap-2">
+            <input id="songUrlInput" onkeydown="if(event.key==='Enter') addSongFromInput()" placeholder="Tempel tautan YouTube atau Spotify" class="flex-1 bg-surface-container border border-outline-variant rounded-xl px-3 py-2 text-sm min-w-0">
+            <button type="button" onclick="addSongFromInput()" class="px-3 rounded-xl bg-primary-container text-on-primary-container text-sm font-semibold">Tambah</button>
+          </div>
+          <div id="queueList" class="flex-1 overflow-y-auto custom-scroll min-h-0 space-y-1"></div>
           <div class="flex gap-2">
-            <input id="songUrlInput" type="text" placeholder="Paste YouTube or Spotify link..."
-              onkeydown="if(event.key==='Enter') addSongFromInput()"
-              class="dark-input input-focus flex-1 px-3 sm:px-4 py-2.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm placeholder-gray-500 min-w-0 transition-all">
-            <button type="button" onclick="addSongFromInput()"
-              class="px-4 sm:px-5 py-2.5 bg-gradient-to-r from-violet-600 to-fuchsia-600 hover:from-violet-500 hover:to-fuchsia-500 rounded-xl font-medium text-sm transition-all active:scale-95 flex-shrink-0 text-white">
-              Add
-            </button>
-          </div>
-          <p class="text-[10px] dark-text-muted text-gray-600 mt-2">Supports YouTube links and Spotify tracks/playlists</p>
-        </div>
-      </div>
-
-      <!-- RIGHT: sidebar (queue + chat) -->
-      <div id="tabContentSidebar" class="min-h-0">
-        <!-- Queue -->
-        <div id="tabContentQueue" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col min-h-0 transition-colors">
-          <div class="flex items-center justify-between p-3 sm:p-4 border-b dark-border border-[#2a2a3e]">
-            <h3 class="font-semibold text-sm flex items-center gap-2">
-              <svg class="w-4 h-4 text-fuchsia-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-              Queue
-            </h3>
-            <span id="queueCount" class="text-xs dark-text-muted text-gray-500">0 songs</span>
-          </div>
-          <div class="px-3 pt-2">
-            <input id="queueSearch" type="text" placeholder="Cari judul..." maxlength="80" oninput="updateQueueUI()"
-              class="dark-input input-focus w-full px-3 py-1.5 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-lg text-xs placeholder-gray-500">
-          </div>
-          <div id="queueList" class="queue-scroll flex-1 overflow-y-auto p-2 space-y-1 min-h-0"></div>
-          <div class="p-2 border-t dark-border border-[#2a2a3e] flex gap-2">
-            <button type="button" id="clearQueueBtn" onclick="clearQueue()" class="flex-1 py-2 text-xs dark-text-muted text-gray-400 hover:text-red-400 dark-bg-primary bg-[#0f0f1a] rounded-lg transition-colors">Clear All</button>
-            <button type="button" id="shuffleQueueBtn" onclick="shuffleQueue()" class="flex-1 py-2 text-xs dark-text-muted text-gray-400 hover:text-white dark-bg-primary bg-[#0f0f1a] rounded-lg transition-colors">Shuffle</button>
+            <button type="button" id="clearQueueBtn" onclick="clearQueue()" class="flex-1 py-2 text-xs rounded-lg bg-surface-container">Kosongkan</button>
+            <button type="button" id="shuffleQueueBtn" onclick="shuffleQueue()" class="flex-1 py-2 text-xs rounded-lg bg-surface-container">Acak</button>
           </div>
         </div>
-
-        <div id="sideBottom" class="mt-3 min-h-0 flex gap-3">
-        <!-- Chat -->
-        <div id="tabContentChat" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col min-h-0 min-w-0 flex-1 transition-colors">
-          <div class="flex items-center gap-1 p-2 border-b dark-border border-[#2a2a3e]">
-            <button type="button" id="tabLogBtn" onclick="switchSideTab('log')" class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-violet-600 text-white">Log</button>
-            <button type="button" id="tabChatBtn" onclick="switchSideTab('chat')" class="px-3 py-1.5 text-xs font-semibold rounded-lg text-gray-400">Chat</button>
-          </div>
-          <div id="logList" class="flex-1 overflow-y-auto p-3 space-y-1 min-h-0 no-scrollbar">
-            <div class="text-center text-xs dark-text-muted text-gray-600 py-4">Belum ada aktivitas</div>
-          </div>
-          <div id="chatPane" class="flex flex-1 flex-col min-h-0" style="display:none">
-          <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0 no-scrollbar">
-            <div class="text-center text-xs dark-text-muted text-gray-600 py-4">Welcome! Say hi 👋</div>
-          </div>
-          <div class="p-2 border-t dark-border border-[#2a2a3e]">
-            <div class="flex gap-2">
-              <input id="chatInput" type="text" placeholder="Type a message..." maxlength="200"
-                onkeydown="if(event.key==='Enter') sendChatMessage()"
-                class="dark-input input-focus flex-1 px-3 py-2 bg-[#0f0f1a] border dark-border border-[#2a2a3e] rounded-xl text-sm placeholder-gray-500 min-w-0 transition-all">
-              <button type="button" onclick="sendChatMessage()" class="px-3 py-2 bg-violet-600 hover:bg-violet-500 rounded-xl transition-colors active:scale-95 flex-shrink-0">
-                <svg class="w-4 h-4 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z"/></svg>
-              </button>
+        <div id="sideBottom" class="h-64 flex flex-col border-t border-outline-variant bg-surface-container-lowest">
+          <div id="tabContentChat" class="flex flex-col flex-1 min-h-0">
+            <div class="flex border-b border-outline-variant">
+              <button type="button" id="tabLogBtn" onclick="switchSideTab('log')" class="flex-1 py-2 text-sm font-semibold">Log</button>
+              <button type="button" id="tabChatBtn" onclick="switchSideTab('chat')" class="flex-1 py-2 text-sm">Chat</button>
+            </div>
+            <div id="logList" class="flex-1 overflow-y-auto p-3 space-y-1 text-xs min-h-0"></div>
+            <div id="chatPane" class="flex flex-col flex-1 min-h-0" style="display:none">
+              <div id="chatMessages" class="flex-1 overflow-y-auto p-3 space-y-2 min-h-0"></div>
+              <div class="p-2 flex gap-2 border-t border-outline-variant">
+                <input id="chatInput" maxlength="200" onkeydown="if(event.key==='Enter') sendChatMessage()" placeholder="Kirim pesan" class="flex-1 bg-surface-container border border-outline-variant rounded-xl px-3 py-1.5 text-sm">
+                <button type="button" onclick="sendChatMessage()" class="w-9 h-9 rounded-xl bg-primary text-on-primary"><span class="material-symbols-outlined text-sm">send</span></button>
+              </div>
             </div>
           </div>
-          </div>
         </div>
-        <div id="peopleCard" class="dark-bg-secondary bg-[#1a1a2e] rounded-2xl border dark-border border-[#2a2a3e] flex flex-col min-h-0 w-56 shrink-0">
-          <h3 class="font-semibold text-sm p-3 border-b dark-border border-[#2a2a3e]">People</h3>
-          <div id="peopleList" class="flex-1 overflow-y-auto p-2 space-y-1.5 min-h-0"></div>
-        </div>
-        </div>
-      </div>
+      </aside>
     </div>
   </div>
 </main>
-
 <script src="assets/player.js?v=<?php echo filemtime(__DIR__ . '/assets/player.js'); ?>"></script>
 </body>
 </html>

@@ -29,6 +29,9 @@ const state = {
   listedRooms: [],
   listPoll: null,
   countdownTimer: null,
+  clockOffset: 0,
+  clockSamples: 0,
+  pollDelay: 1500,
 };
 
 function loadProfile() {
@@ -49,11 +52,36 @@ function hasProfile() {
 function applyProfileUI() {
   const ready = hasProfile();
   document.getElementById('profileGate').classList.toggle('hidden', ready);
-  document.getElementById('createRoomName').classList.add('hidden');
-  document.getElementById('joinUserName').classList.add('hidden');
+  const joinName = document.getElementById('joinUserName');
+  if (joinName) joinName.classList.add('hidden');
   const btn = document.getElementById('profileBtn');
-  btn.classList.toggle('hidden', !ready);
-  btn.textContent = state.userName;
+  if (btn) {
+    btn.classList.toggle('hidden', !ready);
+    btn.textContent = state.userName;
+  }
+  const live = document.getElementById('profileNameLive');
+  if (live && document.activeElement !== live) live.value = state.userName;
+  const uid = document.getElementById('profileUserId');
+  if (uid) uid.textContent = state.userId || '—';
+}
+
+function saveExploreName() {
+  const input = document.getElementById('profileNameLive');
+  if (!input) return;
+  const name = input.value.trim().slice(0, 20);
+  if (!name) {
+    input.value = state.userName;
+    return;
+  }
+  state.userName = name;
+  localStorage.setItem('synctunes_profile', JSON.stringify({ userId: state.userId, name }));
+  applyProfileUI();
+}
+
+function focusCreate() {
+  showAppPage('explore');
+  const el = document.getElementById('buatRoomCard');
+  if (el) el.scrollIntoView({ block: 'nearest' });
 }
 
 function saveProfileFromGate() {
@@ -110,10 +138,8 @@ function setPlayerMode(mode) {
   state.playerMode = mode === 'video' ? 'video' : 'audio';
   localStorage.setItem('synctunes_player_mode', state.playerMode);
   document.body.classList.toggle('audio-only', state.playerMode === 'audio');
-  document.getElementById('modeAudioBtn').classList.toggle('bg-violet-600', state.playerMode === 'audio');
-  document.getElementById('modeAudioBtn').classList.toggle('text-white', state.playerMode === 'audio');
-  document.getElementById('modeVideoBtn').classList.toggle('bg-violet-600', state.playerMode === 'video');
-  document.getElementById('modeVideoBtn').classList.toggle('text-white', state.playerMode === 'video');
+  document.getElementById('modeAudioBtn').classList.toggle('is-on', state.playerMode === 'audio');
+  document.getElementById('modeVideoBtn').classList.toggle('is-on', state.playerMode === 'video');
   if (song && song.source === 'spotify') {
     state.loadedKey = '';
     playSongAtIndex(state.currentIndex, false);
@@ -182,9 +208,7 @@ function switchMobileTab(tab) {
   ps.dataset.mobileTab = tab;
   document.querySelectorAll('[data-tab-btn]').forEach((btn) => {
     const active = btn.dataset.tabBtn === tab;
-    btn.classList.toggle('bg-violet-600', active);
-    btn.classList.toggle('text-white', active);
-    btn.classList.toggle('dark-text-muted', !active);
+    btn.classList.toggle('is-on', active);
   });
 }
 
@@ -275,37 +299,124 @@ function deletionLabel(room) {
 function renderRoomList(rooms) {
   const container = document.getElementById('roomList');
   const countEl = document.getElementById('roomListCount');
-  countEl.textContent = rooms.length + ' room' + (rooms.length !== 1 ? 's' : '');
-  if (!rooms.length) {
-    container.innerHTML = '<p class="dark-text-muted text-gray-500 text-sm text-center py-6">Belum ada room. Buat yang pertama.</p>';
+  const query = (document.getElementById('roomListSearch')?.value || '').trim().toLowerCase();
+  const visible = (rooms || []).filter((room) => {
+    if (!query) return true;
+    const song = (room.nowPlaying && room.nowPlaying.title) || '';
+    return (room.code + ' ' + (room.createdBy || '') + ' ' + song).toLowerCase().includes(query);
+  });
+  if (countEl) countEl.textContent = visible.length + ' ROOM';
+  const listeners = (rooms || []).reduce((sum, room) => sum + (Number(room.online) || 0), 0);
+  const listenerBadge = document.getElementById('listenerBadge');
+  if (listenerBadge) listenerBadge.textContent = listeners + ' pendengar aktif';
+  const hostBadge = document.getElementById('hostBadge');
+  if (hostBadge) {
+    const isHost = (rooms || []).some((room) => room.hostUserId && room.hostUserId === state.userId);
+    hostBadge.classList.toggle('hidden', !isHost);
+  }
+  updateLiveRoomCard(visible);
+  if (!container) return;
+  if (!visible.length) {
+    container.innerHTML = '<p class="text-on-surface-variant text-sm text-center py-6">Belum ada room. Buat yang pertama.</p>';
     return;
   }
-  container.innerHTML = rooms.map((room) => `
-    <div class="flex items-center justify-between p-3 dark-bg-primary bg-[#0f0f1a] rounded-xl border dark-border border-[#2a2a3e]">
-      <div class="min-w-0 flex-1">
-        <div class="flex items-center gap-2">
-          <span class="font-mono font-bold text-violet-400 text-sm">${room.code}</span>
-          ${room.isPrivate ? '<span class="text-yellow-500 text-xs">terkunci</span>' : ''}
-          ${room.hostOnly ? '<span class="text-amber-300 text-[10px]">host</span>' : ''}
+  container.innerHTML = visible.map((room) => `
+    <div data-room-card class="p-2.5 rounded-xl bg-surface-container hover:bg-surface-container-high/80 border border-outline-variant/30 hover:border-primary/50 transition-all flex items-center justify-between group">
+      <div class="flex items-center gap-3 min-w-0">
+        <span class="font-label-code text-[11px] font-bold px-2 py-1 rounded-md bg-surface-container-lowest text-primary border border-outline-variant/40 shrink-0">${room.code}</span>
+        <div class="min-w-0">
+          <div class="flex items-center gap-2">
+            <h4 class="font-title-sm text-[13px] font-semibold text-on-surface truncate">${escapeHtml((room.nowPlaying && room.nowPlaying.title) || 'Belum ada lagu')}</h4>
+            <span class="w-1.5 h-1.5 rounded-full ${room.isPlaying ? 'bg-emerald-400' : 'bg-outline'} shrink-0"></span>
+          </div>
+          <div class="flex items-center gap-1.5 text-on-surface-variant font-body-sm text-[11px] truncate">
+            <span class="material-symbols-outlined text-[13px] text-outline">music_note</span>
+            <span class="truncate">${escapeHtml(room.createdBy || 'Room')} · ${room.online || 0} online${room.hostOnly ? ' · host' : ''}${room.isPrivate ? ' · terkunci' : ''}</span>
+          </div>
+          ${deletionLabel(room)}
         </div>
-        <p class="text-xs dark-text-muted text-gray-400 truncate">oleh ${escapeHtml(room.createdBy || 'Unknown')} · ${room.online || 0} online</p>
-        ${deletionLabel(room)}
       </div>
-      <button type="button" onclick="joinRoomFromList('${room.code}', ${room.isPrivate ? 'true' : 'false'})"
-        class="px-3 py-1.5 bg-violet-600 hover:bg-violet-500 rounded-lg text-xs font-medium text-white ml-2">Join</button>
+      <div class="flex items-center gap-3 shrink-0 ml-2">
+        <div class="hidden sm:flex flex-col items-end">
+          <span class="font-label-timer text-[11px] text-tertiary flex items-center gap-1"><span class="material-symbols-outlined text-[12px]">group</span>${room.online || 0} pendengar</span>
+        </div>
+        <button type="button" onclick="joinRoomFromList('${room.code}', ${room.isPrivate ? 'true' : 'false'})" class="h-7 px-3 rounded-lg bg-surface-container-highest group-hover:bg-primary-container group-hover:text-on-primary-container text-on-surface font-body-sm text-[12px] font-semibold transition-all flex items-center gap-1"><span>Masuk</span><span class="material-symbols-outlined text-[13px]">arrow_forward</span></button>
+      </div>
     </div>`).join('');
+}
+
+function updateLiveRoomCard(rooms) {
+  const card = document.getElementById('liveRoomCard');
+  if (!card) return;
+  const room = rooms && rooms[0];
+  card.classList.toggle('hidden', !room);
+  if (!room) return;
+  const song = room.nowPlaying || null;
+  const label = document.getElementById('liveRoomLabel');
+  const title = document.getElementById('liveRoomTitle');
+  const meta = document.getElementById('liveRoomMeta');
+  const people = document.getElementById('liveRoomPeople');
+  const source = document.getElementById('liveSource');
+  const progress = document.getElementById('liveProgress');
+  const bar = document.getElementById('liveProgressBar');
+  const cover = document.getElementById('liveCoverImg');
+  const icon = document.getElementById('liveCoverIcon');
+  const avatars = document.getElementById('liveAvatars');
+  const synced = document.getElementById('liveSynced');
+  if (label) label.textContent = 'Room Sedang Berlangsung: ' + room.code;
+  if (title) title.textContent = song && song.title ? song.title : 'Belum ada lagu';
+  if (meta) meta.textContent = (room.createdBy || 'Room') + ' · ' + (room.online || 0) + ' online';
+  if (people) people.textContent = (room.online || 0) + ' teman sinkron';
+  if (source) {
+    source.textContent = song && song.source ? song.source : '';
+    source.classList.toggle('hidden', !(song && song.source));
+  }
+  if (synced) synced.style.display = room.isPlaying ? 'flex' : 'none';
+  if (cover && icon) {
+    if (song && song.videoId) {
+      cover.src = 'https://i.ytimg.com/vi/' + song.videoId + '/hqdefault.jpg';
+      cover.classList.remove('hidden');
+      icon.classList.add('hidden');
+    } else {
+      cover.removeAttribute('src');
+      cover.classList.add('hidden');
+      icon.classList.remove('hidden');
+    }
+  }
+  const duration = song ? Number(song.duration) || 0 : 0;
+  let position = Number(room.position) || 0;
+  if (room.isPlaying && room.positionAt && room.serverNow) {
+    position += Math.max(0, (Number(room.serverNow) - Number(room.positionAt)) / 1000);
+  }
+  if (duration > 0) position = Math.min(position, duration);
+  if (progress) progress.classList.toggle('hidden', !song);
+  if (bar) bar.style.width = (song && duration > 0 ? Math.min(100, (position / duration) * 100) : 0) + '%';
+  const posEl = document.getElementById('livePos');
+  const durEl = document.getElementById('liveDur');
+  if (posEl) posEl.textContent = formatTime(position);
+  if (durEl) durEl.textContent = duration > 0 ? formatTime(duration) : '0:00';
+  if (avatars) {
+    const names = (room.listeners || []).filter(Boolean);
+    const shown = names.slice(0, 5);
+    const extra = names.length - shown.length;
+    avatars.classList.toggle('hidden', names.length === 0);
+    avatars.innerHTML = shown.map((name) => {
+      const letter = escapeHtml(String(name).trim().charAt(0).toUpperCase() || '?');
+      return '<span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-surface-container-highest text-[10px] font-bold text-primary ring-2 ring-surface-container-low">' + letter + '</span>';
+    }).join('') + (extra > 0 ? '<span class="inline-flex h-6 w-6 items-center justify-center rounded-full bg-primary-container text-[10px] font-bold text-on-primary-container ring-2 ring-surface-container-low">+' + extra + '</span>' : '');
+  }
 }
 
 function tickRoomCountdowns() {
   document.querySelectorAll('[data-delete-at]').forEach((el) => {
     const left = Math.ceil((Number(el.dataset.deleteAt) - Date.now()) / 1000);
     if (left <= 0) {
-      const card = el.closest('.flex.items-center.justify-between');
+      const card = el.closest('[data-room-card]');
       if (card) card.remove();
       const container = document.getElementById('roomList');
       const countEl = document.getElementById('roomListCount');
-      const leftCards = container ? container.querySelectorAll('.font-mono').length : 0;
-      if (countEl) countEl.textContent = leftCards + ' room' + (leftCards !== 1 ? 's' : '');
+      const leftCards = container ? container.querySelectorAll('[data-room-card]').length : 0;
+      if (countEl) countEl.textContent = leftCards + ' ROOM';
       if (container && leftCards === 0) {
         container.innerHTML = '<p class="dark-text-muted text-gray-500 text-sm text-center py-6">Belum ada room. Buat yang pertama.</p>';
       }
@@ -417,26 +528,47 @@ function enterRoom(room) {
   document.getElementById('chatMessages').innerHTML = '';
   document.getElementById('logList').innerHTML = '';
   switchSideTab('log');
-  document.getElementById('landingScreen').classList.add('hidden');
-  document.getElementById('playerScreen').classList.remove('hidden');
-  document.getElementById('roomInfo').classList.remove('hidden');
-  document.getElementById('roomInfo').classList.add('sm:flex');
+  showAppPage('room');
+  document.getElementById('roomInfo').style.display = 'flex';
   document.getElementById('leaveBtn').classList.remove('hidden');
   document.getElementById('roomIdDisplay').textContent = room.code;
   document.getElementById('roomIdDisplayMobile').textContent = room.code;
-  document.getElementById('onlineIndicator').classList.remove('hidden');
-  document.getElementById('onlineIndicator').classList.add('flex');
+  document.getElementById('onlineIndicator').style.display = 'flex';
   history.replaceState(null, '', '#' + room.code);
   try { sessionStorage.setItem('synctunes_active_room', room.code); } catch (e) {}
+  noteServerClock(room.serverNow);
   applyRoom(room, true);
-  if (state.pollTimer) clearInterval(state.pollTimer);
-  state.pollTimer = setInterval(pollRoom, 1500);
+  schedulePoll(true);
   openRoleIfNeeded(room.code);
+}
+
+function noteServerClock(serverNow) {
+  const sample = Number(serverNow);
+  if (!sample) return;
+  const offset = sample - Date.now();
+  state.clockSamples += 1;
+  state.clockOffset = state.clockSamples === 1 ? offset : (state.clockOffset * 0.7 + offset * 0.3);
+}
+
+function estimatedServerNow() {
+  return Date.now() + state.clockOffset;
+}
+
+function schedulePoll(immediate) {
+  if (state.pollTimer) clearTimeout(state.pollTimer);
+  state.pollTimer = null;
+  if (!state.roomId) return;
+  const wait = immediate ? 0 : (state.isPlaying ? 400 : 1500);
+  state.pollTimer = setTimeout(async () => {
+    state.pollTimer = null;
+    await pollRoom();
+    if (state.roomId) schedulePoll(false);
+  }, wait);
 }
 
 async function leaveRoom(silent) {
   const code = state.roomId;
-  if (state.pollTimer) clearInterval(state.pollTimer);
+  if (state.pollTimer) clearTimeout(state.pollTimer);
   state.pollTimer = null;
   if (code && !silent) {
     api('api/room.php', { action: 'leave', code, userId: state.userId, userName: state.userName }).catch(() => {});
@@ -444,9 +576,10 @@ async function leaveRoom(silent) {
   state.roomId = null;
   state.queue = [];
   state.currentIndex = -1;
-  document.getElementById('playerScreen').classList.add('hidden');
-  document.getElementById('landingScreen').classList.remove('hidden');
   document.getElementById('leaveBtn').classList.add('hidden');
+  document.getElementById('roomInfo').style.display = 'none';
+  document.getElementById('onlineIndicator').style.display = 'none';
+  showAppPage('explore');
   document.getElementById('roomIdDisplay').textContent = 'No room';
   history.replaceState(null, '', location.pathname);
   try { sessionStorage.removeItem('synctunes_active_room'); } catch (e) {}
@@ -476,6 +609,7 @@ async function pollRoom() {
       leaveRoom(true);
       return;
     }
+    noteServerClock(data.room && data.room.serverNow);
     applyRoom(data.room, false);
   } catch (err) {
     if (String(err.message).includes('tidak ditemukan')) {
@@ -517,12 +651,40 @@ function applyRoom(room, initial) {
     stopPlaybackEmpty();
   } else if (indexChanged || initial) {
     state.wantPlaying = !!room.isPlaying;
-    if (initial) state.pendingSeek = resumeSeconds(room);
+    state.pendingSeek = resumeSeconds(room);
     playSongAtIndex(state.currentIndex, false);
   } else {
-    syncPlayback(!!room.isPlaying);
+    alignPlayback(room);
   }
   state.applyingRemote = false;
+}
+
+function alignPlayback(room) {
+  const song = state.queue[state.currentIndex];
+  if (!song || song.source !== 'youtube' || song.live || !state.ytPlayer || !state.ytReady) {
+    syncPlayback(!!room.isPlaying);
+    return;
+  }
+  if (Date.now() < state.ignoreProgressUntil) {
+    syncPlayback(!!room.isPlaying);
+    return;
+  }
+  if (room.positionBy && room.positionBy === state.userId) {
+    syncPlayback(!!room.isPlaying);
+    return;
+  }
+  let cur = 0;
+  try { cur = state.ytPlayer.getCurrentTime() || 0; } catch (e) {
+    syncPlayback(!!room.isPlaying);
+    return;
+  }
+  const target = resumeSeconds(room);
+  if (Math.abs(cur - target) > 0.25) {
+    state.remoteSync = true;
+    try { state.ytPlayer.seekTo(target, true); } catch (e) {}
+    state.ignoreProgressUntil = Date.now() + 900;
+  }
+  syncPlayback(!!room.isPlaying);
 }
 
 function canControl() {
@@ -741,12 +903,7 @@ function applyLocalVolume() {
   document.getElementById('muteLabel').textContent = state.muted ? 'Muted' : 'Mute';
   document.getElementById('muteIconOff').classList.toggle('hidden', state.muted);
   document.getElementById('muteIconOn').classList.toggle('hidden', !state.muted);
-  btn.classList.toggle('bg-[#14532d]', state.muted);
-  btn.classList.toggle('border-green-800', state.muted);
-  btn.classList.toggle('text-white', state.muted);
-  btn.classList.toggle('bg-[#1a1a2e]', !state.muted);
-  btn.classList.toggle('border-[#3a3a4e]', !state.muted);
-  btn.classList.toggle('text-gray-300', !state.muted);
+  btn.classList.toggle('is-on', state.muted);
 }
 
 function localRole() {
@@ -977,13 +1134,13 @@ function startProgressTracker() {
     document.getElementById('currentTime').textContent = formatTime(cur);
     document.getElementById('totalTime').textContent = formatTime(tot);
     if (tot > 0) document.getElementById('progressBar').style.width = ((cur / tot) * 100) + '%';
-    if (!state.lastProgressSent || Date.now() - state.lastProgressSent >= 5000) reportProgress(false);
+    if (!state.lastProgressSent || Date.now() - state.lastProgressSent >= 2000) reportProgress(false);
   }, 500);
 }
 function resumeSeconds(room) {
   let pos = Number(room.position) || 0;
   if (room.isPlaying && room.positionAt) {
-    pos += (Date.now() - Number(room.positionAt)) / 1000;
+    pos += (estimatedServerNow() - Number(room.positionAt)) / 1000;
   }
   if (!Number.isFinite(pos) || pos < 0) return 0;
   return pos;
@@ -1054,23 +1211,33 @@ function sendChatMessage() {
     }))
     .catch((err) => showToast(err.message, 'error'));
 }
-function switchLandingTab(tab) {
-  const screen = document.getElementById('landingScreen');
-  if (!screen) return;
-  screen.dataset.landingTab = tab;
-  ['create', 'join', 'rooms'].forEach((name) => {
-    const btn = document.getElementById('landingTab' + name);
-    if (!btn) return;
-    const on = name === tab;
-    btn.className = 'flex-1 py-2.5 rounded-lg text-sm font-medium transition-colors ' + (on ? 'bg-violet-600 text-white' : 'text-gray-400');
+function showAppPage(page) {
+  const explore = document.getElementById('exploreScreen');
+  const docs = document.getElementById('docsScreen');
+  const room = document.getElementById('playerScreen');
+  if (page === 'docs' && state.roomId) page = 'room';
+  if (explore) explore.classList.toggle('hidden', page !== 'explore');
+  if (docs) docs.classList.toggle('hidden', page !== 'docs');
+  if (room) room.classList.toggle('hidden', page !== 'room');
+  const navExplore = document.getElementById('navExplore');
+  const navDocs = document.getElementById('navDocs');
+  [navExplore, navDocs].forEach((el, i) => {
+    if (!el) return;
+    const on = (i === 0 && page === 'explore') || (i === 1 && page === 'docs');
+    el.classList.toggle('text-primary', on);
+    el.classList.toggle('font-semibold', on);
+    el.classList.toggle('border-b-2', on);
+    el.classList.toggle('border-primary', on);
+    el.classList.toggle('text-on-surface-variant', !on);
   });
 }
+function switchLandingTab() {}
 function switchSideTab(tab) {
   const log = tab !== 'chat';
   document.getElementById('logList').style.display = log ? '' : 'none';
   document.getElementById('chatPane').style.display = log ? 'none' : 'flex';
-  document.getElementById('tabLogBtn').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg ' + (log ? 'bg-violet-600 text-white' : 'text-gray-400');
-  document.getElementById('tabChatBtn').className = 'px-3 py-1.5 text-xs font-semibold rounded-lg ' + (!log ? 'bg-violet-600 text-white' : 'text-gray-400');
+  document.getElementById('tabLogBtn').className = 'flex-1 py-2 text-sm font-semibold ' + (log ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant');
+  document.getElementById('tabChatBtn').className = 'flex-1 py-2 text-sm font-semibold ' + (!log ? 'text-primary border-b-2 border-primary' : 'text-on-surface-variant');
 }
 function appendLogEntry(entry) {
   const list = document.getElementById('logList');
@@ -1117,11 +1284,11 @@ function setVolume(v) {
 }
 function toggleShuffle() {
   state.isShuffle = !state.isShuffle;
-  document.getElementById('shuffleBtn').classList.toggle('text-violet-400', state.isShuffle);
+  document.getElementById('shuffleBtn').classList.toggle('text-primary', state.isShuffle);
 }
 function toggleRepeat() {
   state.isRepeat = !state.isRepeat;
-  document.getElementById('repeatBtn').classList.toggle('text-violet-400', state.isRepeat);
+  document.getElementById('repeatBtn').classList.toggle('text-primary', state.isRepeat);
 }
 function showToast(msg, type = 'info') {
   const colors = {
@@ -1145,8 +1312,11 @@ document.getElementById('progressBarContainer')?.addEventListener('click', funct
   const r = this.getBoundingClientRect();
   const pct = (e.clientX - r.left) / r.width;
   const d = state.ytPlayer.getDuration() || 0;
-    if (d > 0) state.ytPlayer.seekTo(pct * d);
+  if (d > 0) {
+    state.ytPlayer.seekTo(pct * d, true);
     reportProgress(false);
+    state.ignoreProgressUntil = Date.now() + 900;
+  }
 });
 
 function roomCodeFromSession() {
@@ -1197,7 +1367,7 @@ Object.assign(window, {
   removeFromQueue, banFromQueue, playNow, clearQueue, shuffleQueue,
   toggleShuffle, toggleRepeat, sendChatMessage, setVolume,
   toggleTheme, switchMobileTab, onYouTubeIframeAPIReady,
-  saveProfileFromGate, openProfileEditor, closeProfileEditor, saveProfileEdit, setPlayerMode,
+  saveProfileFromGate, openProfileEditor, closeProfileEditor, saveProfileEdit, saveExploreName, focusCreate, setPlayerMode, showAppPage,
   toggleMute, chooseRole, switchSideTab, switchLandingTab,
 });
 
